@@ -10,6 +10,7 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    {"dropbox_hook": "https://hook.eu1.make.com/…", "queue_hook": "https://hook.eu1.make.com/…"}
    ```
 3. `python3 engine/daily.py --date <morgen> --count 7`
+   - dauert im Line-Stil ca. 5–6 min pro Reel (~40 min für 7) → im Hintergrund mit Timeout 3600000 ms starten
    - lädt fehlende Songs aus Dropbox `/mino.recursion/songs/` (Dateinamen wie in `engine/songs.json`)
    - rendert, lädt nach `/mino.recursion/queue/<datum>/` hoch, legt Queue-Einträge an
    - bricht er ab: einfach neu starten, `build/daily/<datum>.json` merkt sich den Fortschritt
