@@ -28,6 +28,12 @@ engine/daily.py  = alles zusammen für einen Tag (7–8 Slots, Europe/Berlin)
   Overlays: Hook-Text mit Glitch/Extrude, Wort-pro-Beat, Win98-Fehler-Popups, Ladebalken, Countdown, Wasserzeichen.
 
 ### Formate
+**Aktiver Kanal-Stil: `line`** (freigegeben, Version 4) — minimale Neon-Line-Art nach Referenz-Clip:
+Silhouetten (Köpfe, Figur, Hand, Pilz, Katze, Auge, Planet …), Wireframe-Würfel/-Räume/-Tunnel, Weave, Checker-Wurmloch,
+Partikel-Kugel, Faser-Burst. Cuts auf Achteln (16tel-Bursts), 16tel-Flackern (Invert / Tint / kurze Spiegel-Hits / Stutter),
+harter Strobe auf jedem Kick, Zoom-/Glow-Puls, Kamerafahrt pro Shot, Neon-Gradient-Map-Grading, kein Text, kein Wasserzeichen.
+Szenen: `engine/shaders/lines.glsl`. Ältere Formate (unten) bleiben per `--format` verfügbar.
+
 | Format | Idee |
 |---|---|
 | `drop`  | 1 Takt Build-up mit Hook-Text, dann Schnitte auf jeden (2.) Beat, WTF-Moment in der Mitte, nahtloser Loop |

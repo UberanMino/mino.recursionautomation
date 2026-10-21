@@ -28,7 +28,8 @@ ROOT = B.ROOT
 TZ = ZoneInfo("Europe/Berlin")
 SLOTS = ["07:40", "10:15", "12:40", "15:10", "17:45", "19:50", "21:40", "23:05"]
 # weighted rotation; "drop" is the core format, the others keep the feed from feeling samey
-FORMATS = ["drop", "eyes", "stare", "drop", "error", "words", "drop", "eyes"]
+# the channel runs the minimal neon line-art format; the older formats stay available via --format
+FORMATS = ["line"] * 8
 
 
 def norm(name):
@@ -105,7 +106,7 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
         mp4 = B.build(plan_path, quality=quality, workers=4)
         remote = f"/mino.recursion/queue/{day.isoformat()}/{plan['id']}.mp4"
         PUB.upload(mp4, remote)
-        thumb = 800 if plan["format"] == "stare" else 600
+        thumb = {"stare": 800, "line": 300}.get(plan["format"], 600)
         PUB.enqueue(plan["id"], it["due_ts"], plan["id"], remote, plan["caption"], plan["hook"].title(), thumb)
         it.update({"status": "queued", "id": plan["id"], "dropbox": remote, "hook": plan["hook"], "caption": plan["caption"],
                    "render_s": round(time.time() - t0, 1)})
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="YYYY-MM-DD (Europe/Berlin), default: tomorrow")
     ap.add_argument("--count", type=int, default=7)
-    ap.add_argument("--format", choices=["drop", "stare", "error", "eyes", "words"])
+    ap.add_argument("--format", choices=["drop", "stare", "error", "eyes", "words", "line"])
     ap.add_argument("--now", action="store_true", help="queue for immediate posting")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--quality", default="looks")
