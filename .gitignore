@@ -1,0 +1,9 @@
+node_modules/
+assets/audio/*.wav
+assets/audio/*.mp3
+build/
+renders/
+*.mp4
+.hf-*
+config.local.json
+__pycache__/

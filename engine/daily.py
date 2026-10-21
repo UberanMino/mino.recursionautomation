@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Daily content run: plan -> render -> upload -> queue, for one calendar day (Europe/Berlin).
+
+  python3 engine/daily.py --date 2026-10-22            # 7 posts at the default slots
+  python3 engine/daily.py --date 2026-10-22 --count 8
+  python3 engine/daily.py --now --count 1 --format drop  # render one and queue it for immediate posting
+  python3 engine/daily.py --date 2026-10-22 --dry-run    # only print the schedule
+
+State lives in build/daily/<date>.json so an interrupted run resumes where it stopped.
+"""
+import argparse
+import datetime as dt
+import json
+import os
+import random
+import subprocess
+import sys
+import time
+from zoneinfo import ZoneInfo
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import build as B  # noqa: E402
+import plan as P  # noqa: E402
+import publish as PUB  # noqa: E402
+
+ROOT = B.ROOT
+TZ = ZoneInfo("Europe/Berlin")
+SLOTS = ["07:40", "10:15", "12:40", "15:10", "17:45", "19:50", "21:40", "23:05"]
+# weighted rotation; "drop" is the core format, the others keep the feed from feeling samey
+FORMATS = ["drop", "eyes", "stare", "drop", "error", "words", "drop", "eyes"]
+
+
+def available_songs():
+    songs = json.load(open(os.path.join(ROOT, "engine", "songs.json")))
+    have = []
+    remote = None
+    for key, s in songs.items():
+        local = os.path.join(ROOT, s["file"])
+        if not os.path.exists(local):
+            if remote is None:
+                try:
+                    remote = set(PUB.listdir("/mino.recursion/songs"))
+                except Exception as e:  # noqa: BLE001
+                    print("warn: cannot list Dropbox songs:", e)
+                    remote = set()
+            name = os.path.basename(s["file"])
+            if name in remote:
+                print("downloading", name)
+                PUB.download(f"/mino.recursion/songs/{name}", local)
+        if os.path.exists(local):
+            an = os.path.join(ROOT, "build", "analysis", f"{key}.json")
+            if not os.path.exists(an):
+                os.makedirs(os.path.dirname(an), exist_ok=True)
+                subprocess.run([sys.executable, os.path.join(ROOT, "engine", "analyze_audio.py"), local, an], check=True)
+            have.append(key)
+    return have
+
+
+def schedule(day, count, songs, fmt=None):
+    r = random.Random(day.toordinal())
+    fmts = FORMATS[:count] if count <= len(FORMATS) else (FORMATS * 2)[:count]
+    r.shuffle(fmts)
+    if fmt:
+        fmts = [fmt] * count
+    slots = SLOTS[:count] if count <= 7 else SLOTS[:count]
+    out = []
+    for i in range(count):
+        hh, mm = map(int, slots[i % len(slots)].split(":"))
+        when = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ) + dt.timedelta(minutes=r.randint(-6, 6))
+        song = songs[(day.toordinal() + i) % len(songs)]
+        seed = (day.toordinal() % 10000) * 10 + i
+        out.append({"slot": i, "due": when.isoformat(), "due_ts": int(when.timestamp()), "format": fmts[i], "song": song, "seed": seed})
+    return out
+
+
+def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
+    songs = available_songs()
+    if not songs:
+        raise SystemExit("no songs available locally or in Dropbox /mino.recursion/songs")
+    state_path = os.path.join(ROOT, "build", "daily", f"{day.isoformat()}{'-now' if now else ''}.json")
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    state = json.load(open(state_path)) if os.path.exists(state_path) else {"day": day.isoformat(), "items": schedule(day, count, songs, fmt)}
+    if now:
+        for it in state["items"]:
+            it["due_ts"] = int(time.time()) - 60
+    json.dump(state, open(state_path, "w"), indent=1)
+    for it in state["items"]:
+        print(f"[{it['slot']}] {it['due']}  {it['format']:6s} {it['song']:15s} seed {it['seed']}  status={it.get('status', 'todo')}")
+    if dry:
+        return state
+    for it in state["items"]:
+        if it.get("status") == "queued":
+            continue
+        t0 = time.time()
+        plan = P.Director(it["song"], it["format"], it["seed"]).build()
+        plan_path = os.path.join(ROOT, "build", "plans", plan["id"] + ".json")
+        os.makedirs(os.path.dirname(plan_path), exist_ok=True)
+        json.dump(plan, open(plan_path, "w"), indent=1)
+        mp4 = B.build(plan_path, quality=quality, workers=4)
+        remote = f"/mino.recursion/queue/{day.isoformat()}/{plan['id']}.mp4"
+        PUB.upload(mp4, remote)
+        thumb = 800 if plan["format"] == "stare" else 600
+        PUB.enqueue(plan["id"], it["due_ts"], plan["id"], remote, plan["caption"], plan["hook"].title(), thumb)
+        it.update({"status": "queued", "id": plan["id"], "dropbox": remote, "hook": plan["hook"], "caption": plan["caption"],
+                   "render_s": round(time.time() - t0, 1)})
+        json.dump(state, open(state_path, "w"), indent=1)
+        print(f"queued {plan['id']} for {it['due']} ({it['render_s']}s)")
+    return state
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--date", help="YYYY-MM-DD (Europe/Berlin), default: tomorrow")
+    ap.add_argument("--count", type=int, default=7)
+    ap.add_argument("--format", choices=["drop", "stare", "error", "eyes", "words"])
+    ap.add_argument("--now", action="store_true", help="queue for immediate posting")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--quality", default="looks")
+    a = ap.parse_args()
+    day = dt.date.fromisoformat(a.date) if a.date else (dt.datetime.now(TZ) + dt.timedelta(days=1)).date()
+    run(day, a.count, a.dry_run, a.now, a.format, a.quality)
