@@ -107,7 +107,8 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
         remote = f"/mino.recursion/queue/{day.isoformat()}/{plan['id']}.mp4"
         PUB.upload(mp4, remote)
         thumb = {"stare": 800, "line": 300}.get(plan["format"], 600)
-        PUB.enqueue(plan["id"], it["due_ts"], plan["id"], remote, plan["caption"], plan["hook"].title(), thumb)
+        title = plan["hook"].title() or f"mino.recursion — {plan['song']['title']}"
+        PUB.enqueue(plan["id"], it["due_ts"], plan["id"], remote, plan["caption"], title, thumb)
         it.update({"status": "queued", "id": plan["id"], "dropbox": remote, "hook": plan["hook"], "caption": plan["caption"],
                    "render_s": round(time.time() - t0, 1)})
         json.dump(state, open(state_path, "w"), indent=1)
