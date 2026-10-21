@@ -18,7 +18,10 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    - Make Data Store `mino_recursion_queue` (227426): 7 Einträge mit `due_ts` am Folgetag
    - Make Data Store `mino_recursion_posted` (227427): heutige Posts, `FAILED` = Fehler bei FB oder IG
    - Szenario 8092663 (Reel-Queue posten) aktiv, keine Fehler-Executions
-5. Stichprobe: 1–2 Renders als Kontaktbogen ansehen (`build/review/`), bevor sie live gehen.
+5. Captions: `engine/captions.json` um 7 neue Geschichten erweitern — gleiche Stimme wie die alten
+   @mino.recursion-Reels (absurde, mystische Ich-Mikrogeschichte, „So there I was …" / „Yo so basically … innit",
+   Gen-Z-Humor, ein paar Keywords wie trance, fractal, third eye, frequency, 152 BPM). Keine Wiederholungen. Committen.
+6. Stichprobe: 1–2 Renders als Kontaktbogen ansehen (`build/review/`), bevor sie live gehen.
 
 Neue Songs: WAV nach Dropbox `/mino.recursion/songs/` legen und in `engine/songs.json` eintragen
 (`file` = `assets/audio/<name>.wav`, Dateiname muss dem Dropbox-Namen entsprechen).

@@ -475,6 +475,22 @@ class Director:
         return plan
 
     def caption(self, hook):
+        if self.fmt == "line":
+            return self.story_caption()
+        return self.hook_caption(hook)
+
+    def story_caption(self):
+        """Old-channel voice: an absurd first-person micro story + 5 hashtags (pool in engine/captions.json)."""
+        pool = load(os.path.join(ROOT, "engine", "captions.json"))
+        stories, sets = pool["stories"], pool["hashtag_sets"]
+        day, slot = divmod(self.seed, 10)
+        idx = (day * 7 + slot) % len(stories)          # daily seeds = date*10 + slot -> a new story every slot
+        tags = sets[idx % len(sets)]
+        return (f"{stories[idx]}\n\n"
+                f"🎧 mino.recursion — {self.song['title']}\n"
+                f"⚠️ flashing lights\n\n" + " ".join(tags))
+
+    def hook_caption(self, hook):
         line = self.r.choice(CAPTION_HOOKS[self.fmt]).format(bpm=int(round(self.bpm)), title=self.song["title"])
         ask = self.r.choice(CAPTION_ASKS[self.fmt])
         tags = self.r.sample(BASE_TAGS, 5) + ["#" + self.song["tags"][0], "#minorecursion"]
