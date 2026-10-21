@@ -58,7 +58,11 @@ engine/daily.py = alles zusammen für einen Tag
 - 1080×1920, 30 fps, **8 Takte** des Songs ab einem Drop/Takt-Fenster (`pick_window(0, 8)`), bei Not Just Music ≈ **13 s**.
 - Szenen aus `engine/shaders/lines.glsl` (15 Stück): weave, wiretunnel, wireroom, tesseract, stripesphere, dashsphere,
   wormhole, isocubes, burst, dots, zigzag, lasers, ridges, **silhouette** (11 Formen × 5 Looks), **cubes**.
-  Gewichtung: silhouette 6, cubes 3, wireroom 3, Rest 1–2. Silhouetten und Würfel sind die Hero-Shots.
+  Silhouetten und Würfel sind die Hero-Shots.
+  **Szenenauswahl:** In Arbeit ist ein Shot-Katalog `engine/shots.py` mit Nutzungs-Gedächtnis `engine/shot_history.json`
+  (Cooldown, Häufigkeitslimit, zusätzliche Szenen und Silhouetten; Branch `claude/project-thread-wxdp7h`, Stand 21.10. noch nicht gemergt).
+  Nach dem Merge ist dort die maßgebliche Beschreibung, siehe auch `docs/DAILY_RUN.md` („Shot-Werkstatt“).
+  Bis dahin gelten die festen Gewichte in `fmt_line()` (`engine/plan.py`).
 - Schnitt: Cuts auf Achteln (Wahrscheinlichkeit steigt mit Song-Energie), gelegentlich 16tel-Burst, ab und zu 1–3 Achtel Halt.
 - Pro Shot: eigene Kamerafahrt (Zoom-Drift, Spin), Animationstempo 1,5–2,4×, ~30 % auf Off-White statt Schwarz.
 - Post-FX: Neon-Gradient-Map (Palette aus der Referenz: tiefes Violett, Smaragd, Elektroblau, Magenta, Karminrot, Cyan),
