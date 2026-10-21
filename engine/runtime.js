@@ -339,7 +339,7 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     gl.uniform1f(u.uFlash, flash); gl.uniform3f(u.uFlashCol, fc[0], fc[1], fc[2]);
     gl.uniform1f(u.uGrain, P.grain || 0.04); gl.uniform1f(u.uScan, P.scan || 0); gl.uniform1f(u.uVig, P.vignette || 0.35);
     gl.uniform1f(u.uHue, (s.hue || 0) + (P.hueSpeed || 0) * t + (fk ? fk[2] : 0));
-    gl.uniform1f(u.uBloom, P.bloom || 0);
+    gl.uniform1f(u.uBloom, (P.bloom || 0) * (1 + (P.bloomPulse || 0) * kickEnv));
     const gw = inWindows(P.glitches, t); gl.uniform1f(u.uGlitch, gw ? (gw[2] || 1) : 0);
     gl.uniform1f(u.uBarrel, P.barrel || 0);
     const pw = inWindows(P.pixelate, t); gl.uniform1f(u.uPixel, pw ? pw[2] : 0);

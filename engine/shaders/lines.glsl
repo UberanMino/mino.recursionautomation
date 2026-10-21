@@ -292,6 +292,153 @@ vec3 lRidges(vec2 p){
   return c;
 }
 
+
+// ---------- silhouettes ----------
+float sdCirc(vec2 p, vec2 c, float r){ return length(p-c)-r; }
+float sdEll(vec2 p, vec2 c, vec2 r){ vec2 q=(p-c)/r; return (length(q)-1.0)*min(r.x,r.y); }
+float sdBoxR(vec2 p, vec2 c, vec2 b, float rr){ vec2 d=abs(p-c)-b+rr; return length(max(d,0.0))+min(max(d.x,d.y),0.0)-rr; }
+float sdCap(vec2 p, vec2 a, vec2 b, float r){ return segD(p,a,b)-r; }
+float smin(float a, float b, float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); return mix(b,a,h)-k*h*(1.0-h); }
+float sdTri(vec2 p, float r){ const float k=1.7320508; p.x=abs(p.x)-r; p.y=p.y+r/k; if(p.x+k*p.y>0.0) p=vec2(p.x-k*p.y,-k*p.x-p.y)/2.0; p.x-=clamp(p.x,-2.0*r,0.0); return -length(p)*sign(p.y); }
+float sdStar5(vec2 p, float r, float rf){
+  const vec2 k1=vec2(0.809016994375,-0.587785252292); const vec2 k2=vec2(-k1.x,k1.y);
+  p.x=abs(p.x); p-=2.0*max(dot(k1,p),0.0)*k1; p-=2.0*max(dot(k2,p),0.0)*k2; p.x=abs(p.x); p.y-=r;
+  vec2 ba=rf*vec2(-k1.y,k1.x)-vec2(0,1); float h=clamp(dot(p,ba)/dot(ba,ba),0.0,r); return length(p-ba*h)*sign(p.y*ba.x-p.x*ba.y);
+}
+float sdHeart(vec2 p){ p.x=abs(p.x); if(p.y+p.x>1.0) return sqrt(dot(p-vec2(0.25,0.75),p-vec2(0.25,0.75)))-sqrt(2.0)/4.0;
+  return sqrt(min(dot(p-vec2(0.0,1.0),p-vec2(0.0,1.0)), dot(p-0.5*max(p.x+p.y,0.0),p-0.5*max(p.x+p.y,0.0))))*sign(p.x-p.y); }
+float shapeSD(int id, vec2 p){
+  if(id==0){ // bust, back of head
+    float h=sdEll(p,vec2(0.0,0.38),vec2(0.34,0.43));
+    float n=sdBoxR(p,vec2(0.0,-0.1),vec2(0.17,0.2),0.06);
+    float sh=max(sdEll(p,vec2(0.0,-0.62),vec2(0.82,0.36)), p.y+0.62-0.0*p.x-1.0);
+    return smin(smin(h,n,0.08),sh,0.12);
+  }
+  if(id==1){ // head profile facing right
+    float c=sdCirc(p,vec2(-0.06,0.38),0.42);
+    float f=sdEll(p,vec2(0.12,0.12),vec2(0.27,0.36));
+    float nose=sdCap(p,vec2(0.30,0.30),vec2(0.43,0.14),0.035);
+    float lip=sdCirc(p,vec2(0.33,0.0),0.05);
+    float chin=sdCirc(p,vec2(0.26,-0.14),0.08);
+    float neck=sdBoxR(p,vec2(-0.03,-0.26),vec2(0.17,0.17),0.05);
+    float d=smin(c,f,0.1); d=smin(d,nose,0.06); d=smin(d,lip,0.04); d=smin(d,chin,0.06); d=smin(d,neck,0.08);
+    return d;
+  }
+  if(id==2){ // figure, arms spread (floating)
+    float d=sdCirc(p,vec2(0.0,0.78),0.14);
+    d=smin(d,sdCap(p,vec2(0.0,0.58),vec2(0.0,-0.08),0.15),0.08);
+    d=smin(d,sdCap(p,vec2(-0.08,0.48),vec2(-0.62,0.66),0.055),0.06);
+    d=smin(d,sdCap(p,vec2(0.08,0.48),vec2(0.62,0.66),0.055),0.06);
+    d=smin(d,sdCap(p,vec2(-0.07,-0.1),vec2(-0.16,-0.92),0.075),0.06);
+    d=smin(d,sdCap(p,vec2(0.07,-0.1),vec2(0.16,-0.92),0.075),0.06);
+    return d;
+  }
+  if(id==3){ // open hand
+    float d=sdBoxR(p,vec2(0.0,-0.25),vec2(0.29,0.32),0.13);
+    d=smin(d,sdCap(p,vec2(-0.21,0.0),vec2(-0.26,0.52),0.062),0.04);
+    d=smin(d,sdCap(p,vec2(-0.07,0.05),vec2(-0.08,0.70),0.065),0.04);
+    d=smin(d,sdCap(p,vec2(0.07,0.05),vec2(0.09,0.66),0.065),0.04);
+    d=smin(d,sdCap(p,vec2(0.21,0.0),vec2(0.26,0.48),0.06),0.04);
+    d=smin(d,sdCap(p,vec2(-0.27,-0.25),vec2(-0.58,0.05),0.07),0.05);
+    d=smin(d,sdBoxR(p,vec2(0.0,-0.78),vec2(0.2,0.25),0.05),0.06);
+    return d;
+  }
+  if(id==4){ // mushroom
+    float cap=max(sdEll(p,vec2(0.0,0.22),vec2(0.62,0.42)), -(p.y-0.12));
+    float stem=sdCap(p,vec2(0.0,0.14),vec2(0.0,-0.62),0.14);
+    return smin(cap,stem,0.05);
+  }
+  if(id==5){ // cat head
+    float d=sdEll(p,vec2(0.0,0.0),vec2(0.46,0.40));
+    vec2 q=p-vec2(0.27,0.38); q=rot(-0.3)*q; d=smin(d,sdTri(q,0.17),0.04);
+    q=p-vec2(-0.27,0.38); q=rot(0.3)*q; d=smin(d,sdTri(q,0.17),0.04);
+    return d;
+  }
+  if(id==6){ // eye
+    float R=(0.9*0.9+0.38*0.38)/(2.0*0.38);
+    return max(length(p-vec2(0.0,0.38-R))-R, length(p+vec2(0.0,0.38-R))-R);
+  }
+  if(id==7) return sdTri(p+vec2(0.0,0.1),0.62);                 // pyramid
+  if(id==8){ // planet with ring
+    float pl=sdCirc(p,vec2(0.0),0.36);
+    vec2 q=rot(0.35)*p; float ring=abs(sdEll(q,vec2(0.0),vec2(0.72,0.17)))-0.025;
+    ring=max(ring, -(pl-0.02)*step(0.0,q.y));
+    return min(pl,ring);
+  }
+  if(id==9) return sdHeart(p*1.25+vec2(0.0,0.62))/1.25;
+  return sdStar5(p,0.6,0.45);
+}
+// 13 silhouette: prm.x shape, prm.y fill style, prm.z scale
+vec3 lSilhouette(vec2 p){
+  int sh=int(uPrm.x);
+  float sc=uPrm.z*(1.0+0.07*uKick);
+  vec2 q=p/sc;
+  q.y-=0.03*sin(uT*1.7);
+  q=rot(0.08*sin(uT*0.9))*q;
+  float d=shapeSD(sh,q)*sc;
+  int fill=int(uPrm.y);
+  vec3 c=BG();
+  float edge=L(d,0.006);
+  if(fill==0){                                   // topographic contour rings around and inside the shape
+    float k=fract(d*14.0-uT*1.5);
+    float rings=L(min(k,1.0-k),0.06)*smoothstep(0.9,0.0,abs(d));
+    c=paint(c, rings*(d<0.0?0.55:1.0), ac());
+    c=paint(c, edge, WHITE()?INK():vec3(1));
+  } else if(fill==1){                            // solid silhouette with a glowing scribble inside
+    vec3 sil=WHITE()?vec3(0.02):vec3(0.0);
+    c=WHITE()?BG():mix(BG(),ac()*0.25,1.0);
+    if(!WHITE()) c=mix(vec3(0.0),ac()*0.18,smoothstep(1.2,0.0,length(p)));
+    if(d<0.0){
+      c=sil;
+      vec2 sp=p*6.0;
+      float n1=noise(sp+vec2(uT*0.9,0.0)), n2=noise(sp*1.7-vec2(0.0,uT*1.1));
+      float scr=L(fract(n1*4.0+n2*2.0)-0.5,0.03);
+      float mask=smoothstep(0.0,-0.25,d)*smoothstep(0.55,0.05,length(q-vec2(0.0,0.4))+0.0*float(sh));
+      c=paint(c, scr*(0.35+0.65*mask), mix(ac(),vec3(1),0.25));
+    }
+    c=paint(c, edge*0.6, ac());
+  } else if(fill==2){                            // wireframe scanlines bulging over the form
+    if(d<0.0){
+      float bulge=sqrt(clamp(-d*3.0,0.0,1.0));
+      float y=p.y*28.0+bulge*3.0*sin(p.x*3.0)-uT*2.0;
+      float x=p.x*28.0/(0.4+bulge);
+      float gl=max(L(fract(y)-0.5,0.08), L(fract(x)-0.5,0.05)*0.6);
+      c=paint(c, gl*(0.4+0.6*bulge), ac());
+    }
+    c=paint(c, edge, WHITE()?INK():mix(ac(),vec3(1),0.5));
+  } else if(fill==3){                            // neon outline with echo trails
+    for(int i=0;i<5;i++){
+      float fi=float(i);
+      float s2=1.0+fi*0.16+0.08*fract(uT*0.8);
+      float di=shapeSD(sh,q/s2)*sc*s2;
+      c=paint(c, L(di,0.005)*(1.0-fi*0.18), ac());
+      if(!WHITE()) c+=ac()*exp(-abs(di)*40.0)*0.15*(1.0-fi*0.2);
+    }
+    c=paint(c, edge, WHITE()?INK():vec3(1));
+  } else {                                       // halftone dots inside, rings outside
+    vec2 g=p*22.0; vec2 f=fract(g)-0.5;
+    float r=0.42*smoothstep(0.0,-0.35,d);
+    float dot_=smoothstep(r,r-0.08,length(f));
+    c=paint(c, dot_*step(d,0.0), ac());
+    float k=fract(d*6.0-uT); c=paint(c, L(min(k,1.0-k),0.05)*step(0.0,d)*smoothstep(0.8,0.0,d), ac()*0.6);
+    c=paint(c, edge, WHITE()?INK():vec3(1));
+  }
+  return c;
+}
+// 14 field of floating wireframe cubes
+vec3 lCubes(vec2 p){
+  vec3 c=BG();
+  float n=uPrm.x;                 // cubes per row (2..3)
+  vec2 g=p*n*0.5; g.y+=uT*0.25*uPrm.y;
+  vec2 id=floor(g), f=(fract(g)-0.5)*2.0/0.5*0.5;
+  float h=hash21(id);
+  float d=cubeLines(f, 1.25+0.15*uKick, uT*(0.6+h)+h*10.0).x;
+  vec3 col=mix(ac(), WHITE()?INK():vec3(1), step(0.8,h));
+  if(!WHITE()) c+=ac()*exp(-d*25.0)*0.25;
+  c=paint(c, L(d,0.012), col);
+  return c;
+}
+
 vec3 scene(int id, vec2 p){
   if(id==0) return lWeave(p);
   if(id==1) return lTunnel(p);
@@ -305,7 +452,9 @@ vec3 scene(int id, vec2 p){
   if(id==9) return lDots(p);
   if(id==10) return lZigzag(p);
   if(id==11) return lLasers(p);
-  return lRidges(p);
+  if(id==12) return lRidges(p);
+  if(id==13) return lSilhouette(p);
+  return lCubes(p);
 }
 
 void main(){

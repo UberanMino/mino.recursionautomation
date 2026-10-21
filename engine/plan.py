@@ -54,8 +54,10 @@ LINE_SCENES = {
     10: ("zigzag", lambda r: [r.choice([6, 8, 10]), r.uniform(2.0, 3.0), 0]),
     11: ("lasers", lambda r: [r.uniform(0.8, 1.3), 0, 0]),
     12: ("ridges", lambda r: [r.choice([28, 34, 40]), r.uniform(0.8, 1.3), 0]),
+    13: ("silhouette", lambda r: [r.randint(0, 10), r.randint(0, 4), r.uniform(1.0, 1.35)]),
+    14: ("cubes", lambda r: [r.choice([2, 2.5, 3]), r.uniform(0.5, 1.2), 0]),
 }
-LINE_WHITE_OK = {0, 4, 6, 7, 9, 10, 3, 8}   # scenes that also read well on off-white
+LINE_WHITE_OK = {0, 4, 6, 7, 9, 10, 3, 8, 13, 14}   # scenes that also read well on off-white
 TRANS = {"cut": 0, "zoom": 1, "iris": 2, "glitch": 3, "swirl": 4, "kaleido": 5, "melt": 6, "pixel": 7, "slit": 8, "liquid": 9}
 PAL_RGB = {0: [1.0, 0.8, 0.0], 1: [1.0, 0.15, 0.8], 2: [0.96, 0.92, 0.82], 3: [0.88, 0.06, 0.16],
            4: [0.45, 0.76, 1.0], 5: [0.6, 1.0, 0.2], 6: [0.96, 0.55, 0.42], 7: [0.2, 1.0, 0.35]}
@@ -378,62 +380,79 @@ class Director:
         return plan, " ".join(words)
 
     def fmt_line(self):
-        """Minimal line-art montage in the style of the reference: one geometry per bar (sometimes half a bar),
-        and inside it a 16th-note flicker of invert / accent hue / mirror tiles / time stutter."""
+        """Line-art montage in the style of the reference: geometry changes on 8th notes (16th bursts),
+        a 16th-note flicker of invert / hue / mirror tiles / stutter on top, strobe on the kicks,
+        zoom + glow pulse on every beat. Silhouettes and cubes are the hero shots."""
         start, end, drop, _ = self.pick_window(0, 8)
         plan = self.base_plan(start, end)
         D = plan["duration"]
         plan["overlays"] = [{"kind": "watermark", "text": "mino.recursion", "y": 0.80, "size": 40, "alpha": 0.45}]
-        plan["post"].update({"punch": 0.02, "rgbBase": 0.0012, "rgbBeat": 0.003, "rgbOnset": 0.002, "shake": 0.0,
-                             "grain": 0.015, "scan": 0, "vignette": 0.1, "barrel": 0.0, "overlayFx": 0.0, "bloom": 0.9})
+        plan["post"].update({"punch": 0.06, "punchDecay": 11, "rgbBase": 0.0012, "rgbBeat": 0.005, "rgbOnset": 0.002, "shake": 0.0,
+                             "grain": 0.015, "scan": 0, "vignette": 0.1, "barrel": 0.0, "overlayFx": 0.0, "bloom": 0.8, "bloomPulse": 1.2})
         plan["render"]["sceneScale"] = 1.0
-        downs = [d for d in plan["downbeats"] if d < D - 0.3]
         beats = plan["beats"]
-        cuts = []
-        for k, d0 in enumerate(downs):
-            cuts.append(d0)
-            if self.r.random() < 0.35:                      # half-bar change
-                mid = [b for b in beats if d0 < b < (downs[k + 1] if k + 1 < len(downs) else D)]
-                if len(mid) >= 2:
-                    cuts.append(mid[1])
-        cuts = sorted(set([0.0] + [round(c, 4) for c in cuts if c > 0.05]))
-        weights = {0: 3, 2: 3, 6: 3, 1: 2, 8: 2, 5: 2, 4: 2, 7: 2, 10: 2, 3: 1, 9: 1, 11: 1, 12: 1}
+        per8 = 60.0 / self.bpm / 2
+        first = beats[0] % per8 if beats else 0.0
+        grid = [round(first + i * per8, 4) for i in range(int(D / per8) + 2) if first + i * per8 < D - 0.1]
+        cuts, hold = [0.0], 0
+        for t in grid[1:]:
+            e = self.energy_at(start + t)
+            if hold > 0:
+                hold -= 1
+                continue
+            if self.r.random() < 0.55 + 0.4 * e:
+                cuts.append(t)
+                if self.r.random() < 0.18 * e:                       # 16th-note burst
+                    cuts.append(round(t + per8 / 2, 4))
+            if self.r.random() < 0.12:
+                hold = self.r.choice([1, 2, 3])                      # let a hero shot breathe
+        cuts = sorted(set(c for c in cuts if c < D - 0.05))
+        weights = {13: 6, 14: 3, 2: 3, 3: 2, 0: 2, 6: 2, 1: 2, 8: 2, 5: 2, 4: 1, 7: 1, 10: 1, 9: 1, 11: 1, 12: 1}
         last = None
         for k, c in enumerate(cuts):
             t1 = cuts[k + 1] if k + 1 < len(cuts) else D
-            pool = [x for x in weights if x != last]
+            pool = [x for x in weights if x != last or x == 13]
             sid = self.r.choices(pool, [weights[x] for x in pool])[0]
             white = sid in LINE_WHITE_OK and self.r.random() < 0.3
             pal = self.r.choice([0, 1, 2, 3, 5]) if not white else self.r.choice([6, 3, 2])
             prm = [round(x, 4) for x in LINE_SCENES[sid][1](self.r)] + [1 if white else 0]
             plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
-                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.3), 3),
-                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": 0.03,
-                                     "mirror": 4 if (sid == 6 and self.r.random() < 0.6) else 0, "energy": self.energy_at(start + c)})
+                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.4), 3),
+                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": 0.05,
+                                     "mirror": 4 if (sid in (6, 2, 14) and self.r.random() < 0.5) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
-                plan["transitions"].append({"t": round(c, 4), "dur": 0.07, "type": TRANS["cut"], "name": "cut"})
+                plan["transitions"].append({"t": round(c, 4), "dur": 0.034, "type": TRANS["cut"], "name": "cut"})
             last = sid
+        # strobe: a 1-2 frame flash on every kick; in some bars on every 8th (max one bar in a row)
+        burst_bars = set(self.r.sample(range(8), 2))
+        downs = plan["downbeats"]
+        def bar_of(t):
+            return max([i for i, d0 in enumerate(downs) if d0 <= t + 1e-4] or [0])
+        for b in beats:
+            if b >= D - 0.05:
+                continue
+            col = self.r.choice([[1, 1, 1], [1, 1, 1], [0.6, 0.4, 1.0], [1.0, 0.3, 0.8], [0.3, 1.0, 0.6]])
+            plan["post"]["flashes"].append({"t": round(b, 4), "dur": 0.05, "amt": 0.85, "color": col})
+            if bar_of(b) in burst_bars:
+                plan["post"]["flashes"].append({"t": round(b + per8, 4), "dur": 0.04, "amt": 0.7, "color": [1, 1, 1]})
         # 16th-note flicker states: [t, invert, hue, mirror(0=segment default), time jump]
-        per = 60.0 / self.bpm / 4
-        first = beats[0] % per if beats else 0.0
+        per = per8 / 2
         steps = [round(first + i * per, 4) for i in range(int(D / per) + 2) if first + i * per < D]
         inv, hue, tile, jump, last_toggle = 0, 0.0, 0, 0.0, -1.0
         flick = []
         for t in steps:
             e = self.energy_at(start + t)
-            p = 0.25 + 0.45 * e
-            # photosensitivity guard: full black/white flips at most every 0.2 s (<= 2.5 flashes per second)
+            p = 0.3 + 0.5 * e
             if self.r.random() < p * 0.8 and t - last_toggle >= 0.2:
                 inv ^= 1
                 last_toggle = t
             if self.r.random() < p * 0.6:
                 hue = self.r.choice([0.0, 0.0, 1.0, -1.0, 2.1, -2.1, 3.14])
-            if self.r.random() < 0.12:
+            if self.r.random() < 0.15:
                 tile = self.r.choice([0, 0, 4, 4, 5])
             if self.r.random() < p * 0.35:
                 jump += self.r.choice([-1, 1]) * self.r.uniform(0.15, 0.6)
             flick.append([t, inv, hue, tile, round(jump, 3)])
-        # loop: make the very last state equal to the first
         if flick:
             flick[-1] = [flick[-1][0]] + flick[0][1:]
         plan["post"]["flicker"] = flick
@@ -450,7 +469,8 @@ class Director:
         line = self.r.choice(CAPTION_HOOKS[self.fmt]).format(bpm=int(round(self.bpm)), title=self.song["title"])
         ask = self.r.choice(CAPTION_ASKS[self.fmt])
         tags = self.r.sample(BASE_TAGS, 5) + ["#" + self.song["tags"][0], "#minorecursion"]
-        return (f"{line}\n{ask}\n\n"
+        warn = "⚠️ flashing lights\n" if self.fmt == "line" else ""
+        return (f"{warn}{line}\n{ask}\n\n"
                 f"🎧 mino.recursion — {self.song['title']} (full track on Spotify, link in bio)\n"
                 f"↻ it loops. use the sound for your own edits.\n\n" + " ".join(tags))
 
