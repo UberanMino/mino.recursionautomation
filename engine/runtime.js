@@ -54,12 +54,13 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     return { p, u };
   }
   const SCENE_PROGS = {};
-  function sceneProgram(id) {
-    if (!SCENE_PROGS[id]) SCENE_PROGS[id] = program(window.__SHADERS__.scenes, `#define SCENE ${id}\n`);
-    return SCENE_PROGS[id];
+  function sceneProgram(id, lib) {
+    const k = (lib || "scenes") + ":" + id;
+    if (!SCENE_PROGS[k]) SCENE_PROGS[k] = program(window.__SHADERS__[lib || "scenes"], `#define SCENE ${id}\n`);
+    return SCENE_PROGS[k];
   }
   // compile every scene this plan uses up front, so the first captured frame is not a compile stall
-  for (const s of PLAN.segments) sceneProgram(s.scene);
+  for (const s of PLAN.segments) sceneProgram(s.scene, s.lib);
   const COMP_PROGS = {};
   function compProgram(tt) {
     const k = tt == null ? "none" : String(tt);
@@ -102,7 +103,7 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     const au = s.still ? { bass: 0, onset: 0, high: 0, rms: 0, kickEnv: 0 } : au0;
     const bs = s.still ? { beat: 0 } : bs0;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, target.w, target.h);
-    const SP = sceneProgram(s.scene); gl.useProgram(SP.p); const u = SP.u;
+    const SP = sceneProgram(s.scene, s.lib); gl.useProgram(SP.p); const u = SP.u;
     const lt = (t - s.t0) * (s.speed == null ? 1 : s.speed) + (s.offset || 0);
     gl.uniform2f(u.uRes, target.w, target.h);
     gl.uniform1f(u.uT, lt);

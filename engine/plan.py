@@ -39,6 +39,23 @@ SCENES = {
     13: ("melt", lambda r: [r.uniform(2, 5), r.uniform(0.4, 1.2), r.uniform(0.6, 1.5), 0], [1, 5, 0, 4], "color"),
     14: ("bigeye", lambda r: [r.uniform(0.7, 0.95), r.uniform(0.25, 0.5), 0, 0], [2, 6, 3], "eye"),
 }
+# minimal line-art library (engine/shaders/lines.glsl): one accent colour, black or off-white ground
+LINE_SCENES = {
+    0: ("weave", lambda r: [r.uniform(4, 7), 0, 0]),
+    1: ("wiretunnel", lambda r: [r.uniform(14, 24), r.uniform(0.5, 1.0), r.choice([0, 1])]),
+    2: ("wireroom", lambda r: [r.choice([6, 8, 10]), r.uniform(0.6, 1.2), 0]),
+    3: ("tesseract", lambda r: [r.uniform(0.8, 1.05), 0, 0]),
+    4: ("stripesphere", lambda r: [r.uniform(0.45, 0.65), r.uniform(0.8, 1.4), 0]),
+    5: ("dashsphere", lambda r: [r.uniform(0.6, 0.8), r.uniform(1.6, 2.4), 0]),
+    6: ("wormhole", lambda r: [r.uniform(5, 8), r.uniform(0.4, 0.9), 0]),
+    7: ("isocubes", lambda r: [r.uniform(2.5, 4.0), r.uniform(0.6, 1.4), 0]),
+    8: ("burst", lambda r: [r.uniform(0.28, 0.4), 0, 0]),
+    9: ("dots", lambda r: [r.uniform(4, 6), r.uniform(0.6, 1.0), r.choice([0, 1])]),
+    10: ("zigzag", lambda r: [r.choice([6, 8, 10]), r.uniform(2.0, 3.0), 0]),
+    11: ("lasers", lambda r: [r.uniform(0.8, 1.3), 0, 0]),
+    12: ("ridges", lambda r: [r.choice([28, 34, 40]), r.uniform(0.8, 1.3), 0]),
+}
+LINE_WHITE_OK = {0, 4, 6, 7, 9, 10, 3, 8}   # scenes that also read well on off-white
 TRANS = {"cut": 0, "zoom": 1, "iris": 2, "glitch": 3, "swirl": 4, "kaleido": 5, "melt": 6, "pixel": 7, "slit": 8, "liquid": 9}
 PAL_RGB = {0: [1.0, 0.8, 0.0], 1: [1.0, 0.15, 0.8], 2: [0.96, 0.92, 0.82], 3: [0.88, 0.06, 0.16],
            4: [0.45, 0.76, 1.0], 5: [0.6, 1.0, 0.2], 6: [0.96, 0.55, 0.42], 7: [0.2, 1.0, 0.35]}
@@ -81,6 +98,7 @@ CAPTION_HOOKS = {
     "error": ["reality.exe has stopped responding.", "Ctrl+Alt+Delete won't save you this time.", "Too much bass detected. Continue? [YES]"],
     "eyes": ["Who is watching who?", "Every pupil is a door.", "It blinked first."],
     "words": ["{title}. Say less.", "It's not just music.", "Read it on the beat."],
+    "line": ["Sound on.", "Lines, loops and {bpm} BPM.", "Recursion, frame by frame."],
 }
 CAPTION_ASKS = {
     "drop": ["Rate this trip 1–10 👇", "What did you see first?", "How many times did you loop it?"],
@@ -88,6 +106,7 @@ CAPTION_ASKS = {
     "error": ["Which error did your brain throw?", "Did you click OK?"],
     "eyes": ["How many eyes did you count?", "Did it blink at you too?"],
     "words": ["Did you read it on the beat?", "Say it with the drop."],
+    "line": ["Which frame got you?", "Loop count?"],
 }
 BASE_TAGS = ["#psychedelic", "#trippy", "#opticalillusion", "#visualart", "#rave", "#edm", "#hypnotic", "#trance",
              "#acidart", "#loop", "#mindbending", "#abstractart"]
@@ -358,6 +377,39 @@ class Director:
         plan["post"]["inverts"].append([0, round(2 / 30, 4)])
         return plan, " ".join(words)
 
+    def fmt_line(self):
+        """Minimal line-art montage: hard cuts every 2 beats (1 in the densest bars), one accent per shot."""
+        start, end, drop, _ = self.pick_window(0, 8)
+        plan = self.base_plan(start, end)
+        D = plan["duration"]
+        plan["overlays"] = [{"kind": "watermark", "text": "mino.recursion", "y": 0.80, "size": 40, "alpha": 0.45}]
+        plan["post"].update({"punch": 0.025, "rgbBase": 0.0008, "rgbBeat": 0.003, "rgbOnset": 0.002, "shake": 0.0,
+                             "grain": 0.012, "scan": 0, "vignette": 0.12, "barrel": 0.0, "overlayFx": 0.0})
+        plan["render"]["sceneScale"] = 1.0
+        beats = plan["beats"]
+        cuts, i = [], 0
+        while i < len(beats) and beats[i] < D - 0.2:
+            cuts.append(beats[i])
+            i += 1 if self.r.random() < 0.25 else 2
+        if not cuts or cuts[0] > 0.01:
+            cuts = [0.0] + cuts
+        last_scene, last_pal, white = None, None, False
+        for k, c in enumerate(cuts):
+            t1 = cuts[k + 1] if k + 1 < len(cuts) else D
+            sid = self.r.choice([x for x in LINE_SCENES if x != last_scene])
+            white = (not white) if sid in LINE_WHITE_OK and self.r.random() < 0.6 else False
+            pal = self.r.choice([p for p in (6, 3, 2, 5) if p != last_pal]) if white else self.r.choice([p for p in range(8) if p != last_pal and p != 6])
+            prm = [round(x, 4) for x in LINE_SCENES[sid][1](self.r)] + [1 if white else 0]
+            plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
+                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.2), 3),
+                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": round(self.r.uniform(0.02, 0.05), 3), "mirror": 0,
+                                     "energy": self.energy_at(start + c)})
+            if k > 0:
+                plan["transitions"].append({"t": round(c, 4), "dur": 0.07, "type": TRANS["cut"], "name": "cut"})
+            last_scene, last_pal = sid, pal
+        self.close_loop(plan)
+        return plan, ""
+
     def build(self):
         plan, hook = getattr(self, f"fmt_{self.fmt}")()
         plan["hook"] = hook.replace("\n", " ")
@@ -376,7 +428,7 @@ class Director:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--song", required=True)
-    ap.add_argument("--format", required=True, choices=["drop", "stare", "error", "eyes", "words"])
+    ap.add_argument("--format", required=True, choices=["drop", "stare", "error", "eyes", "words", "line"])
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out")
     a = ap.parse_args()

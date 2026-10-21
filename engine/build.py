@@ -40,6 +40,7 @@ def assemble(plan, project_dir):
             .replace("__PLAN_JSON__", json.dumps(plan, separators=(",", ":")))
             .replace("__SCENES_GLSL__", json.dumps(scenes))
             .replace("__COMPOSITE_GLSL__", json.dumps(comp))
+            .replace("__LINES_GLSL__", json.dumps(open(os.path.join(ENGINE, "shaders", "lines.glsl")).read()))
             .replace("__RUNTIME_JS__", open(os.path.join(ENGINE, "runtime.js")).read()))
     with open(os.path.join(project_dir, "index.html"), "w") as f:
         f.write(html)
