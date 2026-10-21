@@ -60,5 +60,10 @@ Webhook-URLs stehen **nicht** im Repo. `config.local.json` (gitignored) oder Env
 | mino.recursion – Queue füllen (Claude) | 8092677 | Webhook → Data Store `mino_recursion_queue` (227426) |
 | mino.recursion – Reel-Queue posten FB+IG (Claude) | 8092663 | alle 15 min 06:00–24:00: fälliges Reel → FB-Seite Mino.recursion + IG @mino.recursion, Log in `mino_recursion_posted` (227427) |
 
+## Automatisierung
+- Geplante Claude-Aufgabe „mino.recursion – Reels für die nächsten Tage rendern" (täglich 20:20 Europe/Berlin)
+  hält die Queue für morgen + übermorgen mit je 7 Reels gefüllt und prüft die Posts des Tages — Ablauf in `docs/DAILY_RUN.md`.
+- Slots (±6 min Jitter): 07:40, 10:15, 12:40, 15:10, 17:45, 19:50, 21:40 (+23:05 bei 8 Posts).
+
 ## Songs
 Siehe `engine/songs.json`. WAV-Master liegen in Dropbox `/mino.recursion/songs/` (nicht im Git).
