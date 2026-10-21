@@ -205,13 +205,16 @@ class Director:
             if prev:
                 prev["t1"] = round(c, 4)
             segs.append(self.segment(sid, c, nxt, start_abs, pal_avoid=prev and prev["pal"]))
-            tname = self.r.choice(trans_pool)
+            # on single-beat cuts most changes are hard cuts; a transition never eats more than ~35% of a shot
+            tname = "cut" if (every == 1 and self.r.random() < 0.5) else self.r.choice(trans_pool)
             dur = {"cut": 0.07, "glitch": 0.22, "zoom": 0.3, "iris": 0.32, "swirl": 0.3, "kaleido": 0.3, "melt": 0.32,
                    "pixel": 0.24, "slit": 0.26, "liquid": 0.3}[tname]
+            shot = 60.0 / self.bpm * every
+            dur = round(min(dur, 0.35 * shot), 3) if tname != "cut" else dur
             if prev:
                 plan["transitions"].append({"t": round(c, 4), "dur": dur, "type": TRANS[tname], "name": tname})
                 if tname == "glitch":
-                    plan["post"]["glitches"].append([round(c - 0.1, 4), round(c + 0.12, 4), 0.8])
+                    plan["post"]["glitches"].append([round(c - dur / 2, 4), round(c + dur / 2, 4), 0.7])
 
     def hook_overlay(self, text, t0, t1, style=None, anim="punch", y=0.40, glitch=0.15, bounce=0.06):
         return {"kind": "hook", "text": text, "t0": round(t0, 4), "t1": round(t1, 4), "style": STYLES[style or self.r.choice(["impact", "acid", "mono"])],
@@ -254,8 +257,10 @@ class Director:
         elif wtf == "words":
             times = [b for b in plan["beats"] if mid <= b < mid + self.bar]
             words = self.song["words"][:len(times)] or ["WHAT"]
+            st = dict(STYLES[self.r.choice(["impact", "mono", "acid"])])
+            st["size"] = 300
             plan["overlays"].append({"kind": "words", "t0": round(mid, 4), "t1": round(mid + self.bar, 4), "times": times,
-                                     "words": words, "style": STYLES[self.r.choice(["impact", "mono", "acid"])], "glitch": True, "y": 0.42})
+                                     "words": words, "style": st, "glitch": True, "y": 0.45, "maxW": 0.92})
         else:
             plan["overlays"].append({"kind": "caption", "text": self.r.choice(CAPTION_LINES["drop"]), "t0": round(dr, 4),
                                      "t1": round(dr + 2 * self.bar, 4), "style": STYLES["caption"], "anim": "rise", "y": 0.62})
@@ -287,7 +292,7 @@ class Director:
         return plan, "STARE AT THE DOT"
 
     def fmt_error(self):
-        start, end, drop, _ = self.pick_window(2, 8)
+        start, end, drop, _ = self.pick_window(4, 9)
         plan = self.base_plan(start, end)
         D = plan["duration"]
         dr = round(drop - start, 4)
@@ -298,7 +303,7 @@ class Director:
                                  "title": "consciousness.exe", "text": "loading consciousness..."})
         plan["overlays"].append({"kind": "popups", "t0": 1.8, "t1": dr, "times": [t for t in times if t >= 1.8],
                                  "titles": self.r.sample(POPUP_TITLES, 5), "msgs": self.r.sample(POPUP_MSGS, 6)})
-        plan["post"]["glitches"].append([round(dr - 0.25, 4), round(dr + 0.15, 4), 1.0])
+        plan["post"]["glitches"].append([round(dr - 0.2, 4), round(dr + 0.08, 4), 1.0])
         plan["post"]["inverts"].append([dr, round(dr + 2 / 30, 4)])
         self.beat_cuts(plan, dr, D - self.bar * 0.5, self.r.choice([1, 2]), ["glitch", "pixel", "slit", "cut"], start_abs=start)
         last_cut = D - self.bar * 0.5
@@ -346,8 +351,10 @@ class Director:
         self.close_loop(plan)
         times = [b for b in plan["beats"] if b < D - self.bar * 0.5]
         seq = (words * 20)[:len(times)]
+        st = dict(STYLES[self.r.choice(["impact", "mono", "acid"])])
+        st["size"] = 330
         plan["overlays"].append({"kind": "words", "t0": 0, "t1": round(D - self.bar * 0.5, 4), "times": times, "words": seq,
-                                 "style": STYLES[self.r.choice(["impact", "mono", "acid"])], "glitch": True, "y": 0.42})
+                                 "style": st, "glitch": True, "y": 0.45, "maxW": 0.92})
         plan["post"]["inverts"].append([0, round(2 / 30, 4)])
         return plan, " ".join(words)
 

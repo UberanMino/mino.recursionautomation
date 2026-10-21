@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import time
@@ -30,6 +31,10 @@ SLOTS = ["07:40", "10:15", "12:40", "15:10", "17:45", "19:50", "21:40", "23:05"]
 FORMATS = ["drop", "eyes", "stare", "drop", "error", "words", "drop", "eyes"]
 
 
+def norm(name):
+    return re.sub(r"(final|master|\d+|\.wav$|\.mp3$|[^a-z])", "", name.lower())
+
+
 def available_songs():
     songs = json.load(open(os.path.join(ROOT, "engine", "songs.json")))
     have = []
@@ -43,10 +48,11 @@ def available_songs():
                 except Exception as e:  # noqa: BLE001
                     print("warn: cannot list Dropbox songs:", e)
                     remote = set()
-            name = os.path.basename(s["file"])
-            if name in remote:
-                print("downloading", name)
-                PUB.download(f"/mino.recursion/songs/{name}", local)
+            # accept the original master file names, e.g. "My mind master.wav" -> my_mind
+            match = [n for n in remote if norm(n) == norm(key)]
+            if match:
+                print("downloading", match[0])
+                PUB.download(f"/mino.recursion/songs/{match[0]}", local)
         if os.path.exists(local):
             an = os.path.join(ROOT, "build", "analysis", f"{key}.json")
             if not os.path.exists(an):

@@ -163,7 +163,7 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
       paintText(text, x + dx, y, st, size, alpha); ctx.restore();
     }
   }
-  function win98(x, y, w, title, msg, scale, alpha) {
+  function win98(x, y, w, title, msg, scale, alpha, noIcon) {
     ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(scale, scale);
     const h = 230;
     ctx.fillStyle = "#000"; ctx.fillRect(6, 6, w, h); // drop shadow
@@ -176,6 +176,7 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     ctx.fillText(title, 18, 29);
     // close box
     ctx.fillStyle = "#c0c0c0"; ctx.fillRect(w - 50, 12, 36, 32); ctx.fillStyle = "#000"; ctx.font = '30px "VT323"'; ctx.fillText("x", w - 39, 28);
+    if (!noIcon) {
     // error icon
     ctx.fillStyle = "#e00000"; ctx.beginPath(); ctx.arc(62, 112, 34, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(48, 98); ctx.lineTo(76, 126); ctx.moveTo(76, 98); ctx.lineTo(48, 126); ctx.stroke();
@@ -183,6 +184,8 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     const words = msg.split(" "); let line = "", ly = 96;
     for (const wd of words) { const tt = line ? line + " " + wd : wd; if (ctx.measureText(tt).width > w - 150) { ctx.fillText(line, 120, ly); line = wd; ly += 36; } else line = tt; }
     ctx.fillText(line, 120, ly);
+    }
+    if (noIcon) { ctx.restore(); return; } // progress window: no OK button
     // OK button
     ctx.fillStyle = "#c0c0c0"; ctx.fillRect(w / 2 - 70, h - 64, 140, 46);
     ctx.fillStyle = "#fff"; ctx.fillRect(w / 2 - 70, h - 64, 140, 3); ctx.fillRect(w / 2 - 70, h - 64, 3, 46);
@@ -192,7 +195,7 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
   }
   function progressBar(x, y, w, label, pct, alpha) {
     ctx.save(); ctx.globalAlpha = alpha;
-    win98(x, y, w, label.title || "loading.exe", "", 1, 1);
+    win98(x, y, w, label.title || "loading.exe", "", 1, 1, true);
     const bx = x + 30, by = y + 150, bw = w - 60;
     ctx.fillStyle = "#fff"; ctx.fillRect(bx, by, bw, 36); ctx.strokeStyle = "#404040"; ctx.lineWidth = 3; ctx.strokeRect(bx, by, bw, 36);
     const n = Math.floor((bw - 8) / 22), filled = Math.floor(n * pct);

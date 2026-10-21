@@ -3,40 +3,74 @@
     "title": "Not Just Music",
     "file": "assets/audio/not_just_music.wav",
     "drive_id": "1mMkZzGwfLloBcANwojQp1-Q6CoLdex6_",
-    "dropbox": "/notjustmusicmaster2.wav",
-    "words": ["THIS", "IS", "NOT", "JUST", "MUSIC"],
-    "tags": ["notjustmusic"]
+    "words": [
+      "THIS",
+      "IS",
+      "NOT",
+      "JUST",
+      "MUSIC"
+    ],
+    "tags": [
+      "notjustmusic"
+    ]
   },
   "my_mind": {
     "title": "My Mind",
     "file": "assets/audio/my_mind.wav",
     "drive_id": "1QqlIWv9R2SpDJjQg7fsx961S8GFDexI7",
-    "dropbox": "/mino.recursion/songs/My mind master.wav",
-    "words": ["MY", "MIND", "IS", "MELTING"],
-    "tags": ["mymind"]
+    "words": [
+      "MY",
+      "MIND",
+      "IS",
+      "MELTING"
+    ],
+    "tags": [
+      "mymind"
+    ]
   },
   "digits": {
     "title": "Digits",
     "file": "assets/audio/digits.wav",
     "drive_id": "1M5p2Lh_Usl_6K8ByRGwB4b9EHFRil_HJ",
-    "dropbox": "/mino.recursion/songs/Digits Final Master.wav",
-    "words": ["0", "1", "1", "0", "DIGITS"],
-    "tags": ["digits"]
+    "words": [
+      "0",
+      "1",
+      "1",
+      "0",
+      "DIGITS"
+    ],
+    "tags": [
+      "digits"
+    ]
   },
   "mafia": {
     "title": "Mafia",
     "file": "assets/audio/mafia.wav",
     "drive_id": "1cUgDVdSamFIbWe3vfNXLHXLBaYKdOdNA",
-    "dropbox": "/mino.recursion/songs/mafia master5.wav",
-    "words": ["NO", "ONE", "LEAVES", "THE", "MAFIA"],
-    "tags": ["mafia"]
+    "words": [
+      "NO",
+      "ONE",
+      "LEAVES",
+      "THE",
+      "MAFIA"
+    ],
+    "tags": [
+      "mafia"
+    ]
   },
   "dat_swag": {
     "title": "Dat Swag",
     "file": "assets/audio/dat_swag.wav",
     "drive_id": "1I0QHpsmGkflLD2X1qNgl2uKTqL7iQYV6",
-    "dropbox": "/mino.recursion/songs/Dat Swag Final Master.wav",
-    "words": ["DAT", "SWAG", "IS", "TOO", "MUCH"],
-    "tags": ["datswag"]
+    "words": [
+      "DAT",
+      "SWAG",
+      "IS",
+      "TOO",
+      "MUCH"
+    ],
+    "tags": [
+      "datswag"
+    ]
   }
 }
