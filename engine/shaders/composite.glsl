@@ -14,7 +14,9 @@ uniform float uGrain, uScan, uVig, uHue, uGlitch, uBarrel, uPixel;
 uniform int uMirror;
 uniform float uOvFx;     // how much fx the overlay receives
 uniform vec4 uOvBands0, uOvBands1;
-uniform float uBloom;    // cheap glow: wide taps added on top // up to 4 vertical uv bands (y0,y1) that contain overlay pixels
+uniform float uBloom;    // cheap glow: wide taps added on top
+uniform float uGrade;    // 1 = neon gradient-map grade (line style)
+uniform vec3 uTint;      // grade colour for this shot // up to 4 vertical uv bands (y0,y1) that contain overlay pixels
 in vec2 vUV;
 out vec4 fragColor;
 
@@ -153,6 +155,35 @@ void main(){
 #else
   vec3 col = sampleT(uA,uv);
 #endif
+  if(uGrade>0.5){
+    // neon grade: luminance -> black / saturated tint / white-hot (dark mode), or white / deep tint / black (white mode)
+    float l=dot(col,vec3(0.299,0.587,0.114));
+    float glow=0.0;
+    if(uBloom>0.0){
+      vec2 o=vec2(0.007,0.004);
+      vec3 g=texture(uA,uv+o).rgb+texture(uA,uv-o).rgb+texture(uA,uv+vec2(o.x,-o.y)).rgb+texture(uA,uv+vec2(-o.x,o.y)).rgb;
+      g+=texture(uA,uv+o*2.6).rgb+texture(uA,uv-o*2.6).rgb+texture(uA,uv+vec2(o.x,-o.y)*2.6).rgb+texture(uA,uv+vec2(-o.x,o.y)*2.6).rgb;
+      glow=dot(g/8.0,vec3(0.299,0.587,0.114))*uBloom;
+    }
+    vec3 tint=uTint;
+    if(uInvert<0.5){
+      float x=pow(clamp(l*1.15,0.0,1.0),0.6);
+      vec3 m=mix(vec3(0.0), tint*0.85, smoothstep(0.0,0.45,x));
+      m=mix(m, mix(tint,vec3(1.0),0.55), smoothstep(0.45,0.8,x));
+      m=mix(m, vec3(1.0), smoothstep(0.8,1.0,x));
+      m+=tint*glow*1.6;
+      col=m;
+    } else {
+      float x=pow(clamp(l*1.2,0.0,1.0),0.55);
+      vec3 paper=mix(vec3(0.965,0.96,0.975), tint, 0.04);
+      vec3 m=mix(paper, tint*0.7, smoothstep(0.04,0.3,x));
+      m=mix(m, tint*0.2, smoothstep(0.3,0.65,x));
+      m=mix(m, vec3(0.02), smoothstep(0.65,0.95,x));
+      m=mix(m, m*mix(vec3(1.0),tint,0.6), clamp(glow*1.4,0.0,0.7));
+      col=m;
+    }
+    col=mix(col, uInvert<0.5 ? vec3(1.0) : vec3(0.02), step(0.45,uFlash)); // hard 1-frame strobe
+  } else {
   if(uBloom>0.0){
     vec2 o=vec2(0.006,0.0034);
     vec3 g=texture(uA,uv+o).rgb+texture(uA,uv-o).rgb+texture(uA,uv+vec2(o.x,-o.y)).rgb+texture(uA,uv+vec2(-o.x,o.y)).rgb;
@@ -163,6 +194,7 @@ void main(){
   col=hueShift(col,uHue);
   col=mix(col, 1.0-col, uInvert);
   col=mix(col, uFlashCol, uFlash);
+  }
   // overlay (2D canvas, premultiplied rgba) — only sampled inside the bands where something was drawn
   vec2 ouv=mix(vUV, uv, uOvFx);
   bool inBand=(ouv.y>=uOvBands0.x&&ouv.y<=uOvBands0.y)||(ouv.y>=uOvBands0.z&&ouv.y<=uOvBands0.w)||

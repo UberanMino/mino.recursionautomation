@@ -115,8 +115,9 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     gl.uniform4f(u.uPrm, s.prm[0], s.prm[1], s.prm[2], s.prm[3]);
     gl.uniform1f(u.uSeed, (PLAN.seed % 97) * 0.731 + (s.seed || 0));
     const zp = s.zoomPulse || 0;
-    gl.uniform1f(u.uZoom, (s.zoom || 1) * (1 + zp * au.kickEnv) * Math.pow(1 + (s.zoomDrift || 0), lt));
-    gl.uniform1f(u.uRot, (s.rot || 0) + (s.spin || 0) * lt);
+    const el = t - s.t0; // camera moves are relative to the start of the shot
+    gl.uniform1f(u.uZoom, (s.zoom || 1) * (1 + zp * au.kickEnv) * Math.pow(1 + (s.zoomDrift || 0), el));
+    gl.uniform1f(u.uRot, (s.rot || 0) + (s.spin || 0) * el);
     gl.uniform1f(u.uBass, au.bass); gl.uniform1f(u.uKick, au.kickEnv); gl.uniform1f(u.uOnset, au.onset);
     gl.uniform1f(u.uHigh, au.high); gl.uniform1f(u.uRms, au.rms);
     gl.uniform1f(u.uBeat, Math.max(0, bs.beat)); gl.uniform1f(u.uEnergy, s.energy || 0.5);
@@ -340,6 +341,10 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     gl.uniform1f(u.uGrain, P.grain || 0.04); gl.uniform1f(u.uScan, P.scan || 0); gl.uniform1f(u.uVig, P.vignette || 0.35);
     gl.uniform1f(u.uHue, (s.hue || 0) + (P.hueSpeed || 0) * t + (fk ? fk[2] : 0));
     gl.uniform1f(u.uBloom, (P.bloom || 0) * (1 + (P.bloomPulse || 0) * kickEnv));
+    gl.uniform1f(u.uGrade, P.grade ? 1 : 0);
+    const TINTS = P.tints || [[0.5, 0.12, 1.0]];
+    const ti = fk && fk[5] != null && fk[5] >= 0 ? fk[5] : (s.tint || 0);
+    const tc = TINTS[ti % TINTS.length]; gl.uniform3f(u.uTint, tc[0], tc[1], tc[2]);
     const gw = inWindows(P.glitches, t); gl.uniform1f(u.uGlitch, gw ? (gw[2] || 1) : 0);
     gl.uniform1f(u.uBarrel, P.barrel || 0);
     const pw = inWindows(P.pixelate, t); gl.uniform1f(u.uPixel, pw ? pw[2] : 0);

@@ -386,9 +386,12 @@ class Director:
         start, end, drop, _ = self.pick_window(0, 8)
         plan = self.base_plan(start, end)
         D = plan["duration"]
-        plan["overlays"] = [{"kind": "watermark", "text": "mino.recursion", "y": 0.80, "size": 40, "alpha": 0.45}]
-        plan["post"].update({"punch": 0.06, "punchDecay": 11, "rgbBase": 0.0012, "rgbBeat": 0.005, "rgbOnset": 0.002, "shake": 0.0,
-                             "grain": 0.015, "scan": 0, "vignette": 0.1, "barrel": 0.0, "overlayFx": 0.0, "bloom": 0.8, "bloomPulse": 1.2})
+        plan["overlays"] = []
+        # neon grade palette taken from the reference: deep violet, emerald, electric blue, magenta, crimson, cyan
+        tints = [[0.50, 0.12, 1.00], [0.00, 0.85, 0.38], [0.12, 0.28, 1.00], [1.00, 0.06, 0.66], [1.00, 0.07, 0.18], [0.00, 0.78, 1.00]]
+        plan["post"].update({"punch": 0.07, "punchDecay": 11, "rgbBase": 0.0018, "rgbBeat": 0.006, "rgbOnset": 0.003, "shake": 0.012,
+                             "grain": 0.02, "scan": 0, "vignette": 0.15, "barrel": 0.0, "overlayFx": 0.0, "bloom": 1.0, "bloomPulse": 1.2,
+                             "grade": 1, "tints": tints})
         plan["render"]["sceneScale"] = 1.0
         beats = plan["beats"]
         per8 = 60.0 / self.bpm / 2
@@ -417,9 +420,12 @@ class Director:
             pal = self.r.choice([0, 1, 2, 3, 5]) if not white else self.r.choice([6, 3, 2])
             prm = [round(x, 4) for x in LINE_SCENES[sid][1](self.r)] + [1 if white else 0]
             plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
-                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.4), 3),
-                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": 0.05,
-                                     "mirror": 4 if (sid in (6, 2, 14) and self.r.random() < 0.5) else 0, "energy": self.energy_at(start + c)})
+                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(1.5, 2.4), 3),
+                                     "zoom": round(self.r.uniform(0.9, 1.15), 3), "rot": round(self.r.uniform(-0.3, 0.3), 3),
+                                     "spin": round(self.r.choice([-1, 1]) * self.r.uniform(0.25, 1.1), 3),
+                                     "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9), 3), "zoomPulse": 0.08,
+                                     "tint": self.r.randrange(len(tints)),
+                                     "mirror": 4 if (sid == 6 and self.r.random() < 0.25) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
                 plan["transitions"].append({"t": round(c, 4), "dur": 0.034, "type": TRANS["cut"], "name": "cut"})
             last = sid
@@ -431,14 +437,13 @@ class Director:
         for b in beats:
             if b >= D - 0.05:
                 continue
-            col = self.r.choice([[1, 1, 1], [1, 1, 1], [0.6, 0.4, 1.0], [1.0, 0.3, 0.8], [0.3, 1.0, 0.6]])
-            plan["post"]["flashes"].append({"t": round(b, 4), "dur": 0.05, "amt": 0.85, "color": col})
+            plan["post"]["flashes"].append({"t": round(b, 4), "dur": 0.05, "amt": 0.85, "color": [1, 1, 1]})
             if bar_of(b) in burst_bars:
                 plan["post"]["flashes"].append({"t": round(b + per8, 4), "dur": 0.04, "amt": 0.7, "color": [1, 1, 1]})
         # 16th-note flicker states: [t, invert, hue, mirror(0=segment default), time jump]
         per = per8 / 2
         steps = [round(first + i * per, 4) for i in range(int(D / per) + 2) if first + i * per < D]
-        inv, hue, tile, jump, last_toggle = 0, 0.0, 0, 0.0, -1.0
+        inv, hue, tile, jump, last_toggle, tile_left = 0, -1, 0, 0.0, -1.0, 0
         flick = []
         for t in steps:
             e = self.energy_at(start + t)
@@ -446,13 +451,17 @@ class Director:
             if self.r.random() < p * 0.8 and t - last_toggle >= 0.2:
                 inv ^= 1
                 last_toggle = t
-            if self.r.random() < p * 0.6:
-                hue = self.r.choice([0.0, 0.0, 1.0, -1.0, 2.1, -2.1, 3.14])
-            if self.r.random() < 0.15:
-                tile = self.r.choice([0, 0, 4, 4, 5])
+            if self.r.random() < p * 0.5:
+                hue = self.r.choice([-1, -1, self.r.randrange(len(tints))])   # tint override (-1 = shot tint)
+            if tile_left > 0:
+                tile_left -= 1
+                if tile_left == 0:
+                    tile = 0
+            elif self.r.random() < 0.04:
+                tile, tile_left = self.r.choice([4, 5]), self.r.choice([2, 3, 4])   # short mirror hit, then back
             if self.r.random() < p * 0.35:
                 jump += self.r.choice([-1, 1]) * self.r.uniform(0.15, 0.6)
-            flick.append([t, inv, hue, tile, round(jump, 3)])
+            flick.append([t, inv, 0.0, tile, round(jump, 3), hue])
         if flick:
             flick[-1] = [flick[-1][0]] + flick[0][1:]
         plan["post"]["flicker"] = flick
