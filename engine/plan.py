@@ -41,13 +41,13 @@ SCENES = {
 }
 # minimal line-art library (engine/shaders/lines.glsl): one accent colour, black or off-white ground
 LINE_SCENES = {
-    0: ("weave", lambda r: [r.uniform(4, 7), 0, 0]),
+    0: ("weave", lambda r: [r.uniform(6, 9), 0, 0]),
     1: ("wiretunnel", lambda r: [r.uniform(14, 24), r.uniform(0.5, 1.0), r.choice([0, 1])]),
     2: ("wireroom", lambda r: [r.choice([6, 8, 10]), r.uniform(0.6, 1.2), 0]),
     3: ("tesseract", lambda r: [r.uniform(0.8, 1.05), 0, 0]),
     4: ("stripesphere", lambda r: [r.uniform(0.45, 0.65), r.uniform(0.8, 1.4), 0]),
     5: ("dashsphere", lambda r: [r.uniform(0.6, 0.8), r.uniform(1.6, 2.4), 0]),
-    6: ("wormhole", lambda r: [r.uniform(5, 8), r.uniform(0.4, 0.9), 0]),
+    6: ("wormhole", lambda r: [r.uniform(9, 13), r.uniform(0.4, 0.9), 0]),
     7: ("isocubes", lambda r: [r.uniform(2.5, 4.0), r.uniform(0.6, 1.4), 0]),
     8: ("burst", lambda r: [r.uniform(0.28, 0.4), 0, 0]),
     9: ("dots", lambda r: [r.uniform(4, 6), r.uniform(0.6, 1.0), r.choice([0, 1])]),
@@ -378,35 +378,65 @@ class Director:
         return plan, " ".join(words)
 
     def fmt_line(self):
-        """Minimal line-art montage: hard cuts every 2 beats (1 in the densest bars), one accent per shot."""
+        """Minimal line-art montage in the style of the reference: one geometry per bar (sometimes half a bar),
+        and inside it a 16th-note flicker of invert / accent hue / mirror tiles / time stutter."""
         start, end, drop, _ = self.pick_window(0, 8)
         plan = self.base_plan(start, end)
         D = plan["duration"]
         plan["overlays"] = [{"kind": "watermark", "text": "mino.recursion", "y": 0.80, "size": 40, "alpha": 0.45}]
-        plan["post"].update({"punch": 0.025, "rgbBase": 0.0008, "rgbBeat": 0.003, "rgbOnset": 0.002, "shake": 0.0,
-                             "grain": 0.012, "scan": 0, "vignette": 0.12, "barrel": 0.0, "overlayFx": 0.0})
+        plan["post"].update({"punch": 0.02, "rgbBase": 0.0012, "rgbBeat": 0.003, "rgbOnset": 0.002, "shake": 0.0,
+                             "grain": 0.015, "scan": 0, "vignette": 0.1, "barrel": 0.0, "overlayFx": 0.0, "bloom": 0.9})
         plan["render"]["sceneScale"] = 1.0
+        downs = [d for d in plan["downbeats"] if d < D - 0.3]
         beats = plan["beats"]
-        cuts, i = [], 0
-        while i < len(beats) and beats[i] < D - 0.2:
-            cuts.append(beats[i])
-            i += 1 if self.r.random() < 0.25 else 2
-        if not cuts or cuts[0] > 0.01:
-            cuts = [0.0] + cuts
-        last_scene, last_pal, white = None, None, False
+        cuts = []
+        for k, d0 in enumerate(downs):
+            cuts.append(d0)
+            if self.r.random() < 0.35:                      # half-bar change
+                mid = [b for b in beats if d0 < b < (downs[k + 1] if k + 1 < len(downs) else D)]
+                if len(mid) >= 2:
+                    cuts.append(mid[1])
+        cuts = sorted(set([0.0] + [round(c, 4) for c in cuts if c > 0.05]))
+        weights = {0: 3, 2: 3, 6: 3, 1: 2, 8: 2, 5: 2, 4: 2, 7: 2, 10: 2, 3: 1, 9: 1, 11: 1, 12: 1}
+        last = None
         for k, c in enumerate(cuts):
             t1 = cuts[k + 1] if k + 1 < len(cuts) else D
-            sid = self.r.choice([x for x in LINE_SCENES if x != last_scene])
-            white = (not white) if sid in LINE_WHITE_OK and self.r.random() < 0.6 else False
-            pal = self.r.choice([p for p in (6, 3, 2, 5) if p != last_pal]) if white else self.r.choice([p for p in range(8) if p != last_pal and p != 6])
+            pool = [x for x in weights if x != last]
+            sid = self.r.choices(pool, [weights[x] for x in pool])[0]
+            white = sid in LINE_WHITE_OK and self.r.random() < 0.3
+            pal = self.r.choice([0, 1, 2, 3, 5]) if not white else self.r.choice([6, 3, 2])
             prm = [round(x, 4) for x in LINE_SCENES[sid][1](self.r)] + [1 if white else 0]
             plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
-                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.2), 3),
-                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": round(self.r.uniform(0.02, 0.05), 3), "mirror": 0,
-                                     "energy": self.energy_at(start + c)})
+                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(0.9, 1.3), 3),
+                                     "zoom": 1.0, "rot": 0.0, "spin": 0.0, "zoomPulse": 0.03,
+                                     "mirror": 4 if (sid == 6 and self.r.random() < 0.6) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
                 plan["transitions"].append({"t": round(c, 4), "dur": 0.07, "type": TRANS["cut"], "name": "cut"})
-            last_scene, last_pal = sid, pal
+            last = sid
+        # 16th-note flicker states: [t, invert, hue, mirror(0=segment default), time jump]
+        per = 60.0 / self.bpm / 4
+        first = beats[0] % per if beats else 0.0
+        steps = [round(first + i * per, 4) for i in range(int(D / per) + 2) if first + i * per < D]
+        inv, hue, tile, jump, last_toggle = 0, 0.0, 0, 0.0, -1.0
+        flick = []
+        for t in steps:
+            e = self.energy_at(start + t)
+            p = 0.25 + 0.45 * e
+            # photosensitivity guard: full black/white flips at most every 0.2 s (<= 2.5 flashes per second)
+            if self.r.random() < p * 0.8 and t - last_toggle >= 0.2:
+                inv ^= 1
+                last_toggle = t
+            if self.r.random() < p * 0.6:
+                hue = self.r.choice([0.0, 0.0, 1.0, -1.0, 2.1, -2.1, 3.14])
+            if self.r.random() < 0.12:
+                tile = self.r.choice([0, 0, 4, 4, 5])
+            if self.r.random() < p * 0.35:
+                jump += self.r.choice([-1, 1]) * self.r.uniform(0.15, 0.6)
+            flick.append([t, inv, hue, tile, round(jump, 3)])
+        # loop: make the very last state equal to the first
+        if flick:
+            flick[-1] = [flick[-1][0]] + flick[0][1:]
+        plan["post"]["flicker"] = flick
         self.close_loop(plan)
         return plan, ""
 

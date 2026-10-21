@@ -13,7 +13,8 @@ uniform vec3 uFlashCol;
 uniform float uGrain, uScan, uVig, uHue, uGlitch, uBarrel, uPixel;
 uniform int uMirror;
 uniform float uOvFx;     // how much fx the overlay receives
-uniform vec4 uOvBands0, uOvBands1; // up to 4 vertical uv bands (y0,y1) that contain overlay pixels
+uniform vec4 uOvBands0, uOvBands1;
+uniform float uBloom;    // cheap glow: wide taps added on top // up to 4 vertical uv bands (y0,y1) that contain overlay pixels
 in vec2 vUV;
 out vec4 fragColor;
 
@@ -30,6 +31,8 @@ vec2 mirrorUV(vec2 uv){
   if(uMirror==1){ uv.x = uv.x<0.5 ? uv.x : 1.0-uv.x; }
   else if(uMirror==2){ uv = 0.5-abs(uv-0.5); }
   else if(uMirror==3){ uv.y = uv.y<0.5 ? uv.y : 1.0-uv.y; }
+  else if(uMirror==4){ uv.x = fract(uv.x*2.0); uv.x = mod(floor(vUV.x*2.0),2.0)>0.5 ? 1.0-uv.x : uv.x; uv.x = 0.25+uv.x*0.5; } // 2 mirrored copies side by side
+  else if(uMirror==5){ vec2 k=floor(vUV*2.0); uv=fract(uv*2.0); uv=mix(uv,1.0-uv,mod(k,2.0)); uv=0.25+uv*0.5; }             // 2x2 mirrored tiles
   return uv;
 }
 
@@ -150,6 +153,12 @@ void main(){
 #else
   vec3 col = sampleT(uA,uv);
 #endif
+  if(uBloom>0.0){
+    vec2 o=vec2(0.006,0.0034);
+    vec3 g=texture(uA,uv+o).rgb+texture(uA,uv-o).rgb+texture(uA,uv+vec2(o.x,-o.y)).rgb+texture(uA,uv+vec2(-o.x,o.y)).rgb;
+    g+=texture(uA,uv+o*2.5).rgb+texture(uA,uv-o*2.5).rgb;
+    col=max(col, col+g/6.0*uBloom*(1.0-col));
+  }
   // colour fx
   col=hueShift(col,uHue);
   col=mix(col, 1.0-col, uInvert);

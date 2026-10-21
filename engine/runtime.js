@@ -96,6 +96,9 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     for (const tr of PLAN.transitions) { const a = tr.t - tr.dur / 2, b = tr.t + tr.dur / 2; if (t >= a && t < b) return { tr, p: (t - a) / tr.dur }; }
     return null;
   }
+  // frame-level flicker (line style): invert / hue / mirror tiles / time stutter, one state per 16th note
+  const FL = (PLAN.post && PLAN.post.flicker) || [];
+  function flickerAt(t) { let lo = 0, hi = FL.length - 1, r = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (FL[m][0] <= t + 1e-6) { r = m; lo = m + 1; } else hi = m - 1; } return r < 0 ? null : FL[r]; }
   function inWindows(list, t) { for (const w of list || []) if (t >= w[0] && t < w[1]) return w; return null; }
 
   function drawScene(target, s, t, au0, bs0) {
@@ -104,7 +107,8 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     const bs = s.still ? { beat: 0 } : bs0;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, target.w, target.h);
     const SP = sceneProgram(s.scene, s.lib); gl.useProgram(SP.p); const u = SP.u;
-    const lt = (t - s.t0) * (s.speed == null ? 1 : s.speed) + (s.offset || 0);
+    const fk = flickerAt(t);
+    const lt = (t - s.t0) * (s.speed == null ? 1 : s.speed) + (s.offset || 0) + (fk && !s.still ? fk[4] : 0);
     gl.uniform2f(u.uRes, target.w, target.h);
     gl.uniform1f(u.uT, lt);
     gl.uniform1i(u.uPal, s.pal);
@@ -328,16 +332,18 @@ in vec2 aP; out vec2 vUV; void main(){ vUV=aP*0.5+0.5; gl_Position=vec4(aP,0.0,1
     gl.uniform1f(u.uRGB, (P.rgbBase || 0.002) + (P.rgbBeat || 0.008) * kickEnv * energy + (P.rgbOnset || 0.004) * au.onset);
     const sd = sinceDownbeat(t); const shakeA = (P.shake || 0) * Math.exp(-sd * 12) * energy;
     gl.uniform2f(u.uShake, (hash(f * 1.3) - 0.5) * shakeA, (hash(f * 2.7) - 0.5) * shakeA);
-    const inv = inWindows(P.inverts, t); gl.uniform1f(u.uInvert, inv ? 1 : 0);
+    const fk = flickerAt(t);
+    const inv = inWindows(P.inverts, t); gl.uniform1f(u.uInvert, (inv ? 1 : 0) ^ (fk ? fk[1] : 0));
     let flash = 0, fc = [1, 1, 1];
     for (const fl of P.flashes || []) { const d = t - fl.t; if (d >= 0 && d < fl.dur) { flash = Math.max(flash, (1 - d / fl.dur) * (fl.amt || 0.6)); fc = fl.color; } }
     gl.uniform1f(u.uFlash, flash); gl.uniform3f(u.uFlashCol, fc[0], fc[1], fc[2]);
     gl.uniform1f(u.uGrain, P.grain || 0.04); gl.uniform1f(u.uScan, P.scan || 0); gl.uniform1f(u.uVig, P.vignette || 0.35);
-    gl.uniform1f(u.uHue, (s.hue || 0) + (P.hueSpeed || 0) * t);
+    gl.uniform1f(u.uHue, (s.hue || 0) + (P.hueSpeed || 0) * t + (fk ? fk[2] : 0));
+    gl.uniform1f(u.uBloom, P.bloom || 0);
     const gw = inWindows(P.glitches, t); gl.uniform1f(u.uGlitch, gw ? (gw[2] || 1) : 0);
     gl.uniform1f(u.uBarrel, P.barrel || 0);
     const pw = inWindows(P.pixelate, t); gl.uniform1f(u.uPixel, pw ? pw[2] : 0);
-    gl.uniform1i(u.uMirror, s.mirror || 0);
+    gl.uniform1i(u.uMirror, fk && fk[3] ? fk[3] : (s.mirror || 0));
     gl.uniform1f(u.uOvFx, P.overlayFx == null ? 0.35 : P.overlayFx);
     const ob = packBands(); gl.uniform4f(u.uOvBands0, ob[0], ob[1], ob[2], ob[3]); gl.uniform4f(u.uOvBands1, ob[4], ob[5], ob[6], ob[7]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
