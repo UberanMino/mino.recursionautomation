@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build as B  # noqa: E402
 import plan as P  # noqa: E402
 import publish as PUB  # noqa: E402
+import shots as S  # noqa: E402
 
 ROOT = B.ROOT
 TZ = ZoneInfo("Europe/Berlin")
@@ -95,11 +96,15 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
         print(f"[{it['slot']}] {it['due']}  {it['format']:6s} {it['song']:15s} seed {it['seed']}  status={it.get('status', 'todo')}")
     if dry:
         return state
+    hist = S.load_history()
     for it in state["items"]:
         if it.get("status") == "queued":
             continue
         t0 = time.time()
-        plan = P.Director(it["song"], it["format"], it["seed"]).build()
+        plan = P.Director(it["song"], it["format"], it["seed"], history=hist).build()
+        # shot memory: the next reel already knows what this one used (commit engine/shot_history.json after the run)
+        S.record(hist, plan, day.isoformat())
+        S.save_history(hist)
         plan_path = os.path.join(ROOT, "build", "plans", plan["id"] + ".json")
         os.makedirs(os.path.dirname(plan_path), exist_ok=True)
         json.dump(plan, open(plan_path, "w"), indent=1)

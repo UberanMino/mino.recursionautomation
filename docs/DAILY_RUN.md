@@ -22,6 +22,31 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    @mino.recursion-Reels (absurde, mystische Ich-Mikrogeschichte, „So there I was …" / „Yo so basically … innit",
    Gen-Z-Humor, ein paar Keywords wie trance, fractal, third eye, frequency, 152 BPM). Keine Wiederholungen. Committen.
 6. Stichprobe: 1–2 Renders als Kontaktbogen ansehen (`build/review/`), bevor sie live gehen.
+7. Shot-Gedächtnis committen: `daily.py` trägt jedes geplante Reel in `engine/shot_history.json` ein
+   (welche Shots, welcher Hero). Die Datei **immer mit committen und pushen**, sonst weiß der Lauf
+   morgen nicht, was heute lief, und die Reels wiederholen sich wieder.
+8. `python3 engine/shots.py report` ausführen. Steht dort **NEUE SHOTS FÄLLIG** → Shot-Werkstatt (unten).
+
+## Shot-Werkstatt (Abwechslung)
+
+Jedes Reel castet 7–9 Shots aus dem Katalog in `engine/shots.py` (Szene + Variante, z. B.
+`silhouette/alien/echo`, `polytunnel/hex`) und schneidet nur zwischen diesen. Gewählt wird gegen das
+Gedächtnis: Cooldown für die letzten 2 Reels, max. 4 von 21 Reels pro Shot (5 pro Familie),
+mindestens 3 im Fenster unbenutzte Shots pro Reel, Bonus für kaum genutzte Shots, Hero nicht zweimal
+innerhalb von 7 Reels, kein Shot über 24 % der Schnitte. Regeln stehen oben in `engine/shots.py` (`RULES`).
+
+Damit der Feed nicht trotzdem einschläft, kommen regelmäßig neue Shots dazu (Report meldet es nach
+4 Tagen ohne neuen Shot):
+1. 1–2 neue Szenen in `engine/shaders/lines.glsl` schreiben (vor `vec3 scene(...)`, in `scene()` eintragen)
+   oder neue Silhouetten-Formen in `shapeSD()`. Stil halten: Neon-Line-Art, eine Akzentfarbe, schwarzer
+   (optional off-white) Grund, dünne Linien, Bewegung über `uT`, Kick über `uKick`. Günstig rechnen
+   (SwiftShader!): keine Raymarch-Schleifen, Schleifen ≤ ~120 Iterationen.
+2. In `engine/shots.py` eintragen: `LINE_SCENES` (Name + Parameter-Sampler), ggf. `LINE_WHITE_OK`,
+   Katalog-Eintrag in `_catalog()` mit `added="<heute>"` (Silhouetten: Name an `SIL_SHAPES` anhängen,
+   Reihenfolge = Shape-ID).
+3. Kontaktbogen prüfen: `python3 engine/tools/line_sheet.py --since <heute> --white` → `build/linesheet.jpg`
+   ansehen. Nur was im Stil sitzt und lesbar ist, bleibt drin.
+4. Committen. Neue Shots bekommen automatisch den Neuheits-Bonus und laufen in den nächsten Tagen öfter.
 
 Neue Songs: WAV nach Dropbox `/mino.recursion/songs/` legen und in `engine/songs.json` eintragen
 (`file` = `assets/audio/<name>.wav`, Dateiname muss dem Dropbox-Namen entsprechen).
