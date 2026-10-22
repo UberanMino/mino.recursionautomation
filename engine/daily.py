@@ -33,7 +33,7 @@ FORMATS = ["line"] * 8
 
 
 def norm(name):
-    return re.sub(r"(final|master|\d+|\.wav$|\.mp3$|[^a-z])", "", name.lower())
+    return re.sub(r"(final|master|stereo|\d+|\.wav$|\.mp3$|[^a-z])", "", name.lower())
 
 
 def available_songs():

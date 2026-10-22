@@ -57,5 +57,17 @@
     "tags": [
       "mafia"
     ]
+  },
+  "free_your_mind": {
+    "title": "Free Your Mind",
+    "file": "assets/audio/free_your_mind.wav",
+    "words": [
+      "FREE",
+      "YOUR",
+      "MIND"
+    ],
+    "tags": [
+      "freeyourmind"
+    ]
   }
 }
