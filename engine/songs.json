@@ -57,20 +57,5 @@
     "tags": [
       "mafia"
     ]
-  },
-  "dat_swag": {
-    "title": "Dat Swag",
-    "file": "assets/audio/dat_swag.wav",
-    "drive_id": "1I0QHpsmGkflLD2X1qNgl2uKTqL7iQYV6",
-    "words": [
-      "DAT",
-      "SWAG",
-      "IS",
-      "TOO",
-      "MUCH"
-    ],
-    "tags": [
-      "datswag"
-    ]
   }
 }
