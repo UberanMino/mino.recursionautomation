@@ -98,8 +98,21 @@ Hier trägt die Höhe keine Tonhöhe; die Tonhöhe steckt im Muster.
 
 ## Gemessen
 
-Kick-Sync jedes Videos: siehe Abschnitt „Messung“ in der Übersicht, die mit den Videos verschickt wurde
-(kick-getriggerter Mittelwert der Bildänderung über alle Kicks im Ausschnitt).
+Kick-Sync jedes Videos (Digits 47,5–77,5 s, 44 Kicks): mittlere Bildänderung zwischen zwei Frames, gemittelt über
+alle Kicks, im Frame vor dem Kick und im Kick-Frame (Graustufen, 0–255, inklusive Untertitel):
+
+| Video | Frame davor | Kick-Frame | Faktor |
+|---|---|---|---|
+| Tunnel ohne Feder (v2) | 9,6 | 22,8 | 2,4 |
+| Tunnel mit Feder | 11,5 | 38,8 | 3,4 |
+| A Lorenz | 2,2 | 8,9 | 4,0 |
+| B Julia | 9,2 | 49,2 | 5,3 |
+| C Kepler | 1,0 | 8,1 | 8,1 |
+| D Gray-Scott | 5,2 | 21,4 | 4,1 |
+| E Chladni | 3,4 | 19,3 | 5,7 |
+
+Bei allen liegt der Höhepunkt im Frame des Kicks, nicht danach (R3). Die absoluten Werte sind zwischen den Modellen
+nicht vergleichbar (dunkle Bilder ändern sich weniger), der Faktor schon eher.
 
 ## Ehrlich eingeordnet
 
