@@ -97,10 +97,68 @@ class Clip:
         return best
 
 
-def plan_cuts(an, length, rng, hook_beats=3):
-    beats = [b for b in an["beats"]]
+def kick_onsets(song, a, b, sr=22050, hop=110):
+    """Kick attacks between a and b seconds: peaks of the rising <150 Hz envelope (5 ms steps)."""
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-ss", f"{a:.3f}", "-t", f"{b - a:.3f}", "-i", song,
+                          "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"], check=True, capture_output=True).stdout
+    y = np.frombuffer(raw, dtype=np.float32)
+    spec = np.fft.rfft(y)
+    spec[np.fft.rfftfreq(len(y), 1.0 / sr) > 150] = 0
+    env = np.abs(np.fft.irfft(spec, len(y)))
+    env = env[:len(env) // hop * hop].reshape(-1, hop).max(axis=1)
+    rise = np.diff(env, prepend=env[0])
+    thr = np.percentile(rise, 99.0)
+    t = a + np.arange(len(env)) * hop / sr
+    out = []
+    for i in range(1, len(rise) - 1):
+        if rise[i] > thr and rise[i] >= rise[i - 1] and rise[i] >= rise[i + 1]:
+            if not out or t[i] - out[-1] > 0.15:
+                out.append(float(t[i]))
+    return np.array(out)
+
+
+def kick_grid(song, an, near, span=14.0):
+    """Beat grid locked to the actual kicks around `near`.
+
+    The analysis beat grid (analyze_audio.py, 23 ms hops) sat ~90 ms ahead of the
+    kicks on Need some Lovin, which reads as off-beat at one cut per beat. Here the
+    period and phase are fitted to the kick attacks themselves, and the drop is the
+    first kick after a gap (kicks back in after a break).
+    """
+    period0 = float(np.median(np.diff(an["beats"])))
+    start = max(0.0, near - span / 2)
+    kicks = kick_onsets(song, start, near + span)
+    # brute-force period/phase: the grid that puts the most kicks within 20 ms wins
+    # (ghost hits and breaks make a plain least-squares fit slip by a beat)
+    best = (-1.0, period0, 0.0)
+    for period in np.arange(period0 * 0.9, period0 * 1.1, 0.0004):
+        for ph in np.arange(0.0, period, 0.004):
+            r = (kicks - start - ph) / period
+            dev = np.abs(r - np.round(r)) * period
+            hit = dev < 0.02
+            score = hit.sum() - dev[hit].mean() if hit.any() else 0.0
+            if score > best[0]:
+                best = (score, period, ph)
+    _, period, ph = best
+    t0 = start + ph
+    res = kicks - (t0 + period * np.round((kicks - t0) / period))
+    t0 += float(np.median(res[np.abs(res) < 0.02]))
+    gaps = [i for i in range(1, len(kicks)) if kicks[i] - kicks[i - 1] > period * 1.8]
+    if kicks[0] - start > period * 1.8:
+        gaps.insert(0, 0)
+    cand = [kicks[i] for i in gaps if abs(kicks[i] - near) < period * 8]
+    drop = min(cand, key=lambda k: abs(k - near)) if cand else near
+    n_drop = round((drop - t0) / period)
+    first = n_drop - int((drop - start) / period)
+    grid = [t0 + period * k for k in range(first, n_drop + int(span / period) + 1)]
+    return grid, t0 + period * n_drop, period
+
+
+def plan_cuts(song, an, length, rng, hook_beats=3):
+    beats = an["beats"]
     drops = an.get("drops") or [{"t": beats[len(beats) // 3]}]
-    drop = rng.choice(drops[:2])["t"]
+    near = rng.choice(drops[:2])["t"]
+    beats, drop, period = kick_grid(song, an, near)
     di = int(np.argmin([abs(b - drop) for b in beats]))
     start_i = max(0, di - hook_beats)
     t0 = beats[start_i]
@@ -176,7 +234,7 @@ def main():
 
     rng = random.Random(a.seed)
     an = analysis_for(a.song)
-    t0, cuts = plan_cuts(an, a.length, rng)
+    t0, cuts = plan_cuts(a.song, an, a.length, rng)
     files = sorted(os.path.join(a.clips, f) for f in os.listdir(a.clips) if f.endswith(".mp4"))
     hook_path = a.hook or rng.choice([f for f in files if os.path.basename(f).startswith("h")])
     pool = [f for f in files if f != hook_path and not os.path.basename(f).startswith("h")]
