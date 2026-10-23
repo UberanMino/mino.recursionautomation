@@ -4,6 +4,9 @@ Ordner `synesthesia/` — eigenständig, unabhängig von der Live-Pipeline (`eng
 Ziel: Musik und Bild nach **festen mathematischen Regeln** koppeln statt nach Gefühl. Jede Regel ist eine
 kleine Formel; alle Konstanten stehen in `synesthesia/rules.py` (`Rules`) und lassen sich per JSON überschreiben.
 
+> **Version 2 (3D-Flug, Standard):** `docs/MAPPING_RULES_3D.md`. Dieses Dokument beschreibt die Grundregeln, die
+> dort weiter gelten, und den 2D-Look von Version 1 (`--look butterfly`).
+
 ## Bildaufbau („Spektral-Schmetterling“)
 
 Die senkrechte Mittellinie ist **jetzt**. In jedem Frame wird der aktuelle Klang als senkrechtes Spektrum auf die
@@ -17,7 +20,7 @@ Moment wird turbulent, unsymmetrisch und reißt auf.
 ```bash
 pip install -r synesthesia/requirements.txt
 python3 -m synesthesia song.wav --analyze-only                         # Songstruktur: Pegel, Chaos, Klangfarbe je 2 Takte
-python3 -m synesthesia song.wav --start 18.7 --dur 22 --out out.mp4    # 1080×1920, 30 fps, mit Ton
+python3 -m synesthesia song.wav --start 18.7 --dur 22 --out out.mp4 --look butterfly   # 1080×1920, 30 fps, mit Ton
 python3 -m synesthesia song.wav --start 18.7 --dur 22 --out out.mp4 --overlay   # Erklär-Version mit Achsen + Chaos-Anzeige
 python3 -m synesthesia song.wav --export score.json                    # alle Bildparameter pro Frame, für andere Renderer
 python3 -m synesthesia.calibrate song.wav --start 31.2 --dur 4         # Chaos-Kalibrierung (siehe R6)

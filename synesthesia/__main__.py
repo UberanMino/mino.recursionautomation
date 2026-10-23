@@ -14,6 +14,7 @@ import numpy as np
 
 from .features import Features, analyze
 from .render import render
+from . import signals, tunnel
 from .rules import Rules, element_ab, lightness, psi, timbre_ab
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -82,6 +83,8 @@ def main():
     ap.add_argument("--weighting", default="B", choices=["A", "B", "C", "Z"])
     ap.add_argument("--scale", type=float, default=0.5, help="internal render scale of 1080x1920")
     ap.add_argument("--sheet", help="also save a contact sheet of 6 stills (jpg)")
+    ap.add_argument("--look", default="tunnel", choices=["tunnel", "butterfly"],
+                    help="tunnel = 3D flight through the song (v2), butterfly = 2D spectral butterfly (v1)")
     ap.add_argument("--analyze-only", action="store_true")
     ap.add_argument("--export")
     a = ap.parse_args()
@@ -95,13 +98,19 @@ def main():
     if a.out:
         t = time.time()
         n = int(a.dur * 30)
-        picks = [int(n * q) for q in (0.08, 0.25, 0.42, 0.58, 0.75, 0.92)] if a.sheet else None
-        stills = render(F, r, a.song, a.start, a.dur, a.out, scale=a.scale, overlay=a.overlay, stills=picks)
+        picks = [int(n * q) for q in (0.04, 0.2, 0.36, 0.52, 0.68, 0.84, 0.97)] if a.sheet else None
+        if a.look == "tunnel":
+            S = signals.compute(F, r)
+            print("sections:", ", ".join(f"{s['start']:.1f}s {s['kind']}" for s in S.sections))
+            stills = tunnel.render(F, S, r, a.song, a.start, a.dur, a.out, scale=a.scale, overlay=a.overlay,
+                                   stills=picks)
+        else:
+            stills = render(F, r, a.song, a.start, a.dur, a.out, scale=a.scale, overlay=a.overlay, stills=picks)
         print(f"wrote {a.out} in {time.time() - t:.0f}s")
         if a.sheet and stills:
             from PIL import Image
             ims = [Image.fromarray(s).resize((360, 640)) for s in stills]
-            sheet = Image.new("RGB", (360 * 6 + 50, 640 + 20), (20, 20, 20))
+            sheet = Image.new("RGB", (368 * len(ims) + 10, 640 + 20), (20, 20, 20))
             for i, im in enumerate(ims):
                 sheet.paste(im, (10 + i * 368, 10))
             sheet.save(a.sheet, quality=90)
