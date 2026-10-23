@@ -39,7 +39,7 @@ Jeder Video-Frame ist ein Querschnitt quer zur Flugbahn, gebaut im lokalen Bahn-
 - **Chaos zerfranst die Wände:** Radius × (1 + 0,35 · C^1,1 · Rauschen).
 - **Drums sind Rippen** quer durch den Tunnel, auf ihrer Tonhöhe: Kick am Boden, Snare/Clap in der Mitte, Hi-Hats an
   der Decke. Ein Four-on-the-floor-Groove wird zu gleichmäßig auf dich zukommenden Bodenrippen, die genau auf dem
-  Schlag ankommen. Helligkeit relativ zum lautesten Schlag derselben Klasse (Kick 100 %, Snare 70 %, Hat 40 %).
+  Schlag ankommen. Helligkeit relativ zum lautesten Schlag derselben Klasse (Kick 90 %, Snare 55 %, Hat 30 %).
 - **Staubfeld** um den Tunnel (feste Punkte, 1,8–5 Einheiten von der Bahn): macht Geschwindigkeit und Richtung lesbar;
   es funkelt mit dem Air-Band (4–16 kHz).
 
@@ -94,8 +94,8 @@ Die Verknüpfung „aufhellen“ (Maximum) statt Addition sorgt dafür, dass sic
 | FB3 | Farbdrift | Spuren drehen ihren Farbton um die Grauachse, `1,6 rad/Takt · Klangfarbengeschwindigkeit` | Klangfarbe ändert sich → Nachbilder verfärben sich |
 | FB4 | Prisma | R und B zoomen ±`0,012 · Air-Band` unterschiedlich | Hi-Hats/Höhen → Farbsäume |
 | FB5 | Selbst-Strömung | Spuren fließen entlang ihrer eigenen Helligkeitskonturen, `3,2 px · C^1,1` | Chaos → flüssige Verwirbelung |
-| FB6 | Unschärfe/Schärfe | `κ = 0,5 · (2 · Tonal-Anteil − 1)`, κ > 0 weichzeichnen, κ < 0 schärfen | legato/Pads → weich, perkussiv → scharf |
-| FB7 | Gedächtnis | Trail-Länge `0,07 + 0,45 · Tonal-Anteil` s | gehaltene Klänge hinterlassen lange Spuren, trockene kurze |
+| FB6 | Unschärfe/Schärfe | `κ = 0,5 · (2 · Tonal-Anteil − 1)`, begrenzt auf −0,45 … 0,25; κ > 0 weichzeichnen, κ < 0 schärfen | legato/Pads → weich, perkussiv → scharf |
+| FB7 | Gedächtnis | Trail-Länge `0,07 + 0,3 · Tonal-Anteil` s | gehaltene Klänge hinterlassen lange Spuren, trockene kurze |
 | FB8 | Kaleidoskop | Spuren N-fach gespiegelt, Anteil `1,6 · (1 − C) · (1 − Lautheit) − 0,3`; N je Abschnitt 4/6/8/3 | ruhige, geordnete Passagen → Symmetrie |
 | FB9 | Takt-Echo | Geist des Bildes von genau 1 Takt vorher, `0,22 · (1 − C)`, nur im selben Abschnitt | Wiederholung → Bild überlagert sich deckungsgleich, Neues → Doppelbild |
 | FB10 | Belichtung | `+0,8 · Kick` (60 ms), `+2,2` beim Drop-Eintritt (250 ms) | Impulse |

@@ -140,7 +140,7 @@ class Feedback:
     swirl_px: float = 3.2        # FB5 self-advection along the image's own contours, * chaos^1.1
     diff_k: float = 0.5          # FB6 blur (legato) / sharpen (percussive)
     mem_min: float = 0.07        # FB7 trail memory in seconds: mem_min + mem_harm * harmonic share
-    mem_harm: float = 0.45
+    mem_harm: float = 0.3
     fold_k: float = 1.0          # FB8 kaleidoscope on the trails in calm, ordered passages
     echo_k: float = 0.22         # FB9 ghost of the frame one bar ago, if still in the same section
     flash_kick: float = 0.8      # FB10 exposure punch per (normalised) kick, 60 ms
@@ -149,7 +149,7 @@ class Feedback:
     invert_drop: bool = True     # FB12 one negative frame on a drop entry
 
 
-RIB_GAIN = {"kick": 1.0, "snare": 0.7, "hat": 0.4}
+RIB_GAIN = {"kick": 0.9, "snare": 0.55, "hat": 0.3}
 
 
 class Tunnel:
@@ -305,7 +305,7 @@ class Tunnel:
                     ne = self.n_exp[kj]
                     half = (max(0.0, 1 - abs(hy) ** ne)) ** (1 / ne)
                     P = p.X[kj] + (xs.T * w.a * half) * p.M[kj][:, 0] + hy * p.M[kj][:, 1]
-                    ab = element_ab(0.0, self.ab_h[kj], self.ab_p[kj], self.r)
+                    ab = element_ab(0.35, self.ab_h[kj], self.ab_p[kj], self.r)
                     col = oklab_to_linear_srgb(np.array([lightness(pw, self.r)]), ab[..., 0:1], ab[..., 1:2])[0]
                     pts.append(P)
                     vals.append(np.repeat((col * Aj * RIB_GAIN[cls])[None, :], len(P), 0))
@@ -315,7 +315,7 @@ class Tunnel:
                     V = np.concatenate(vals)
                     x, y, z, ok = self.project(P, C, B)
                     fog = np.exp(-np.maximum(z - w.d0, 0) / w.fog)
-                    a2 = (0.03 * f / np.maximum(z, 0.1)) * (0.05 * f / np.maximum(z, 0.1))
+                    a2 = (0.015 * f / np.maximum(z, 0.1)) * (0.05 * f / np.maximum(z, 0.1))
                     on = ok & (x > -4) & (x < W + 4) & (y > -4) & (y < H + 4)
                     self._splat(bufs, x[on], y[on], V[on] * fog[on, None], np.minimum(a2[on], 300.0))
         # dust: brightness follows the air band (hats, shimmer)
@@ -394,7 +394,7 @@ class Tunnel:
             Rm = (np.eye(3) * cth + sth * Kx + (1 - cth) * np.outer(kx, kx)).astype(np.float32)
             out = np.clip(out @ Rm.T, 0, None)
         # FB6 diffusion: legato blurs, percussive sharpens
-        kap = float(np.clip(fb.diff_k * (2 * hb - 1), -0.45, 0.6))
+        kap = float(np.clip(fb.diff_k * (2 * hb - 1), -0.45, 0.25))
         if abs(kap) > 0.02:
             out = np.clip(out + kap * (gaussian_filter(out, (1.2, 1.2, 0)) - out), 0, None)
         # FB7 memory
@@ -447,7 +447,7 @@ class Tunnel:
         H, W = self.H, self.W
         small = gaussian_filter(img[::2, ::2], (3, 3, 0))
         big = gaussian_filter(img[::8, ::8], (3, 3, 0))
-        out = img + 0.25 * _resize(small, W, H) + 0.2 * _resize(big, W, H)
+        out = img + 0.18 * _resize(small, W, H) + 0.15 * _resize(big, W, H)
         out = 1 - np.exp(-1.4 * out)
         srgb = np.where(out <= 0.0031308, 12.92 * out, 1.055 * np.power(np.maximum(out, 0), 1 / 2.4) - 0.055)
         return (np.clip(srgb, 0, 1) * 255 + 0.5).astype(np.uint8)
