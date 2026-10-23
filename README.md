@@ -75,6 +75,9 @@ Webhook-URLs stehen **nicht** im Repo. `config.local.json` (gitignored) oder Env
 `synesthesia/` koppelt Musik und Bild nach festen Regeln: Tonhöhe → Höhe, Lautheit → Helligkeit,
 Klangfarbe → Farbe, musikalisches Chaos → visuelles Chaos, Stereo → links/rechts.
 Regelwerk, Messungen und Benutzung: `docs/MAPPING_RULES.md`.
+Version 2 (Standard): 3D-Flug durch einen Tunnel aus dem Song, mit Kick-Bounce, `docs/MAPPING_RULES_3D.md`.
+Fünf weitere Modelle mit eigenen Naturgesetzen (Lorenz, Julia, Kepler, Gray-Scott, Chladni):
+`python3 -m synesthesia song.wav --model lorenz ...`, siehe `docs/MODELS.md`.
 
 ## Songs
 Siehe `engine/songs.json`. WAV-Master liegen in Dropbox `/mino.recursion/songs/` (nicht im Git).

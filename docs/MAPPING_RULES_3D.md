@@ -82,6 +82,26 @@ Helligkeit und Rauschanteil; in Drops 0. Weil der Song offline analysiert wird, 
 
 Digits: Breaks/Build-ups 0–28,6 s, 53,8–66,5 s, 98,1–104,2 s, 116,7–129,3 s; Drops ab 28,6 / 66,5 / 104,2 / 129,3 s.
 
+## K Kick-Bounce: jeder Kick federt
+
+Jeder Kick lenkt eine gedämpfte Feder aus (Masse-Feder-System mit Anfangsauslenkung, damit der Ausschlag im Frame des
+Kicks am größten ist und nicht danach):
+
+`x(t) = Σ wᵢ · e^(−ζω(t − tᵢ)) · cos(ω_d (t − tᵢ))`, Periode ½ Beat, ζ = 0,3, `wᵢ` = Kick-Stärke / 90.-Perzentil (max 1,2)
+
+| Größe | Kopplung | Wirkung |
+|---|---|---|
+| Tunnelwände | Querschnitt · (1 + 0,3 x) | die Wände schlagen nach außen und federn zurück |
+| Brennweite | f · (1 + 0,22 x), die Feedback-Spuren zoomen mit | Zoom-Punch auf den Schlag |
+| Kamera | 0,15 x Einheiten nach unten | kurzer Stoß, wie ein Fahrzeug über eine Kante |
+| Spuren | Gedächtnis · (1 − 0,6 · max(x, 0)) | visueller Sidechain: der Schlag steht sauber, danach bauen sich die Spuren wieder auf |
+| Belichtung | · (1 + 0,35 x) | hell auf dem Schlag, dunkler im Überschwingen |
+| Funken | wie Version 1: 90 Funken pro Kick (Boden), 45 pro Snare (Seitenwände), 18 pro Hat (Decke), fliegen aus der Wand und an der Kamera vorbei; Chaos streut die Richtung | |
+
+Gemessen über die 44 Kicks im Digits-Ausschnitt (kick-getriggerter Mittelwert der Bildänderung zwischen Frames):
+ohne Feder 22,8 im Kick-Frame bei etwa 9 Grundrauschen, mit Feder 38,8. Der Höhepunkt liegt in beiden Fällen genau im
+Frame des Kicks.
+
 ## FB Feedback-Loops
 
 Das fertige Bild läuft durch eine Kette von Video-Feedback-Schleifen: `Bild = max(Welt, g · FB(vorheriges Bild))`.

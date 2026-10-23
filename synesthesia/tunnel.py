@@ -48,6 +48,17 @@ class World3D:
     lookahead_bars: float = 7.0
     fog: float = 7.0
     anticip: float = 0.35       # brightness of the future relative to the present
+    # K kick bounce: every kick displaces a damped spring, x(t) = sum_i w_i e^(-zeta w t) cos(w_d t), t = t - t_i
+    bounce_beats: float = 0.5   # spring period in beats (settles before the next kick)
+    bounce_zeta: float = 0.3    # damping ratio: one overshoot, then calm
+    bounce_wall: float = 0.3    # tunnel cross-section grows by this factor at x = 1 (walls punch out)
+    bounce_zoom: float = 0.22   # focal length punch (picture jumps toward the viewer)
+    bounce_cam: float = 0.15    # camera jolts down (units) and springs back
+    bounce_cut: float = 0.6     # trails are cut by this share at the kick peak (visual sidechain: the hit is clean)
+    bounce_expo: float = 0.35   # exposure follows the spring: brighter on the hit, darker in the overshoot
+    spark_n: int = 90           # sparks per full kick (snare 0.5x, hat 0.2x), as in version 1
+    spark_speed: float = 3.2    # units per second, radially out of the tunnel and back past the camera
+    spark_life_bars: float = 0.25
     seed: int = 11
 
 
@@ -211,6 +222,31 @@ class Tunnel:
         self.entry_frames = {int(video_frame(s["start"], fps)) for s in S.sections if s.get("entry")}
         self.state = {}
         self.world_gain = 0.45
+        # K kick bounce: damped spring driven by the kicks (peak in the kick's own frame, R3)
+        beat = S.bar_s / 4
+        om = 2 * np.pi / (w.bounce_beats * beat)
+        wd = om * math.sqrt(1 - w.bounce_zeta ** 2)
+        kick = S.hits["kick"]
+        self.bounce = np.zeros(S.n)
+        if len(kick):
+            kw = np.clip(kick[:, 2] / (np.percentile(kick[:, 2], 90) + 1e-9), 0, 1.2)
+            tt = np.arange(int(3 * w.bounce_beats * beat * fps) + 1) / fps
+            resp = np.exp(-w.bounce_zeta * om * tt) * np.cos(wd * tt)
+            for tk, wk in zip(kick[:, 0], kw):
+                k0 = int(video_frame(tk, fps))
+                k1 = min(S.n, k0 + len(resp))
+                if k0 >= 0:
+                    self.bounce[k0:k1] += wk * resp[:k1 - k0]
+        self.f0 = self.f
+        self.sparks = np.zeros((0, 12), np.float32)     # pos 3, vel 3, age, life, rgb 3, unused
+        self.hit_frames = {}
+        for cls in ("kick", "snare", "hat"):
+            hh = S.hits[cls]
+            if not len(hh):
+                continue
+            p90 = np.percentile(hh[:, 2], 90) + 1e-9
+            for t, _, pw in hh:
+                self.hit_frames.setdefault(int(video_frame(t, fps)), []).append((cls, min(1.2, pw / p90)))
 
     # ---------------------------------------------------------------- camera + projection
     def camera(self, k):
@@ -225,6 +261,7 @@ class Tunnel:
         up = Mc[:, 1] - fwd * (Mc[:, 1] @ fwd)
         up /= np.linalg.norm(up) + 1e-12
         right = np.cross(up, fwd)
+        C = C - self.w.bounce_cam * self.bounce[k] * up        # K: camera jolts down on the kick, springs back
         return C, np.stack([right, up, fwd])          # rows
 
     def project(self, P, C, B):
@@ -277,7 +314,7 @@ class Tunnel:
         n_e = self.n_exp[js][:, None]
         hh = self.h[None, :]
         xr = np.power(np.clip(1 - np.abs(hh) ** n_e, 0, 1), 1 / n_e)
-        jag = 1 + 0.35 * chaos[:, None] * self.jag[js]
+        jag = (1 + 0.35 * chaos[:, None] * self.jag[js]) * (1 + w.bounce_wall * self.bounce[k])   # K: walls punch out
         X = p.X[js][:, None, :]
         R = p.M[js][:, None, :, 0]
         U = p.M[js][:, None, :, 1]
@@ -304,7 +341,8 @@ class Tunnel:
                     Aj = (w.anticip + (1 - w.anticip) * math.exp(-tj / (S.bar_s / 4))) if tj >= 0 else math.exp(tj / (S.bar_s / 16))
                     ne = self.n_exp[kj]
                     half = (max(0.0, 1 - abs(hy) ** ne)) ** (1 / ne)
-                    P = p.X[kj] + (xs.T * w.a * half) * p.M[kj][:, 0] + hy * p.M[kj][:, 1]
+                    sc = 1 + w.bounce_wall * self.bounce[k]
+                    P = p.X[kj] + (xs.T * w.a * half * sc) * p.M[kj][:, 0] + hy * sc * p.M[kj][:, 1]
                     ab = element_ab(0.35, self.ab_h[kj], self.ab_p[kj], self.r)
                     col = oklab_to_linear_srgb(np.array([lightness(pw, self.r)]), ab[..., 0:1], ab[..., 1:2])[0]
                     pts.append(P)
@@ -318,6 +356,8 @@ class Tunnel:
                     a2 = (0.015 * f / np.maximum(z, 0.1)) * (0.05 * f / np.maximum(z, 0.1))
                     on = ok & (x > -4) & (x < W + 4) & (y > -4) & (y < H + 4)
                     self._splat(bufs, x[on], y[on], V[on] * fog[on, None], np.minimum(a2[on], 300.0))
+        # sparks (as in version 1): bursts from every drum hit, flying out of the tunnel wall
+        self._sparks(k, bufs, C, B)
         # dust: brightness follows the air band (hats, shimmer)
         dm = (self.dust_k >= j0) & (self.dust_k < j1)
         if dm.any():
@@ -333,6 +373,50 @@ class Tunnel:
             img += _resize(gaussian_filter(bufs[l], (0, 0.6, 0.6)).transpose(1, 2, 0), W, H)
         return img, C, B
 
+    def _sparks(self, k, bufs, C, B):
+        w, p, fps = self.w, self.path, self.fps
+        c = float(np.clip(self.S.a["chaos"][k], 0, 1))
+        new = []
+        for cls, pw in self.hit_frames.get(k, ()):
+            n = int(round(w.spark_n * {"kick": 1.0, "snare": 0.5, "hat": 0.2}[cls] * pw))
+            if n == 0:
+                continue
+            hy = {"kick": -0.9, "snare": 0.0, "hat": 0.85}[cls]
+            ne = self.n_exp[k]
+            half = (max(0.0, 1 - abs(hy) ** ne)) ** (1 / ne)
+            xq = self.rng.uniform(-1, 1, n) * half
+            if cls == "snare":                               # snare: from the side walls
+                xq = np.sign(xq + 1e-9) * half
+                hy_v = self.rng.uniform(-0.5, 0.5, n)
+            else:
+                hy_v = np.full(n, hy)
+            R, U, T = p.M[k][:, 0], p.M[k][:, 1], p.M[k][:, 2]
+            pos = p.X[k] + np.outer(xq * w.a, R) + np.outer(hy_v, U)
+            rad = np.outer(xq, R) + np.outer(hy_v, U)
+            rad /= np.linalg.norm(rad, axis=1, keepdims=True) + 1e-9
+            rad += (0.15 + 1.2 * c) * self.rng.standard_normal((n, 3))          # chaos spreads the burst
+            sp = w.spark_speed * (0.35 + pw) * self.rng.uniform(0.4, 1.0, (n, 1))
+            vel = sp * (0.75 * rad - 0.65 * T) / fps
+            ab = element_ab(0.0, self.ab_h[k], self.ab_p[k], self.r)
+            col = oklab_to_linear_srgb(np.array([lightness(pw, self.r)]), ab[..., 0:1], ab[..., 1:2])[0] * 1.6
+            life = w.spark_life_bars * self.S.bar_s * fps * self.rng.uniform(0.6, 1.4, n)
+            new.append(np.c_[pos, vel, np.zeros(n), life, np.repeat(col[None], n, 0), np.zeros(n)])
+        if new:
+            self.sparks = np.vstack([self.sparks] + [x.astype(np.float32) for x in new])
+        S_ = self.sparks
+        if not len(S_):
+            return
+        alpha = np.clip(1 - S_[:, 6] / S_[:, 7], 0, 1) ** 1.5
+        for sub in (0.0, 0.33, 0.66):                        # motion blur
+            x, y, z, ok = self.project(S_[:, 0:3] + sub * S_[:, 3:6], C, B)
+            on = ok & (x > 0) & (x < self.W - 1) & (y > 0) & (y < self.H - 1)
+            val = S_[on, 8:11] * (alpha[on] / 3)[:, None]
+            self._splat(bufs, x[on], y[on], val, np.full(on.sum(), 1.5))
+        S_[:, 0:3] += S_[:, 3:6]
+        S_[:, 3:6] *= 0.9
+        S_[:, 6] += 1
+        self.sparks = S_[S_[:, 6] < S_[:, 7]]
+
     # ---------------------------------------------------------------- feedback chain
     def feedback(self, k, C, B):
         S, fb, H, W = self.S, self.fb, self.H, self.W
@@ -347,6 +431,8 @@ class Tunnel:
         x0, y0, _, _ = self.project(self.path.X[k][None, :], C, B)
         cx, cy = float(np.clip(x0[0], W * 0.2, W * 0.8)), float(np.clip(y0[0], H * 0.2, H * 0.8))
         zoom = 1 + fb.zoom_k * self.path.ds[k] / self.w.d0
+        zoom *= self.f / getattr(self, "f_prev", self.f)          # trails follow the kick zoom punch
+        self.f_prev = self.f
         roll = 0.0
         if self.cam_prev is not None:
             up0 = self.cam_prev[1]
@@ -399,14 +485,15 @@ class Tunnel:
             out = np.clip(out + kap * (gaussian_filter(out, (1.2, 1.2, 0)) - out), 0, None)
         # FB7 memory
         mem = fb.mem_min + fb.mem_harm * hb
-        g = math.exp(-1.0 / (self.fps * mem))
+        g = math.exp(-1.0 / (self.fps * mem)) * (1 - self.w.bounce_cut * min(1.0, max(0.0, float(self.bounce[k]))))
         self.state.update(chaos=c ** (1 / 1.1), zoom=zoom, roll=roll, fold=beta, nfold=nfold, mem=mem, kappa=kap,
                           kind=sec["kind"], speed=float(self.path.v[k]), tension=float(A["tension"][k]),
-                          rates=self.path.rates[k])
+                          rates=self.path.rates[k], bounce=float(self.bounce[k]))
         return g * out
 
     def step(self, k):
         S, fb = self.S, self.fb
+        self.f = self.f0 * (1 + self.w.bounce_zoom * self.bounce[k])          # K: zoom punch on the kick
         img, C, B = self.render_world(k)
         lin = np.maximum(self.world_gain * img, self.feedback(k, C, B))   # "lighten": trails never pile up
         lin = np.minimum(lin, 6.0)
@@ -432,6 +519,7 @@ class Tunnel:
         for s in S.sections:
             if s.get("entry") and 0 <= t - s["start"] < 1.0:
                 E += fb.flash_drop * math.exp(-(t - s["start"]) / 0.25)
+        E *= max(0.3, 1 + self.w.bounce_expo * float(self.bounce[k]))                       # K
         # FB11 shake from sub-bass
         sub = float(S.a["psi_sub"][k])
         self.shake = 0.5 * self.shake + 0.5 * self.rng.standard_normal(2)

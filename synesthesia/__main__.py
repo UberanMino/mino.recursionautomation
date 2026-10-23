@@ -85,6 +85,9 @@ def main():
     ap.add_argument("--sheet", help="also save a contact sheet of 6 stills (jpg)")
     ap.add_argument("--look", default="tunnel", choices=["tunnel", "butterfly"],
                     help="tunnel = 3D flight through the song (v2), butterfly = 2D spectral butterfly (v1)")
+    ap.add_argument("--model", help="render one of the alternative models instead (lorenz, julia, kepler, "
+                                    "grayscott, chladni, kuramoto; see docs/MODELS.md)")
+    ap.add_argument("--no-caption", action="store_true", help="models: leave out the caption with the laws")
     ap.add_argument("--analyze-only", action="store_true")
     ap.add_argument("--export")
     a = ap.parse_args()
@@ -99,7 +102,13 @@ def main():
         t = time.time()
         n = int(a.dur * 30)
         picks = [int(n * q) for q in (0.04, 0.2, 0.36, 0.52, 0.68, 0.84, 0.97)] if a.sheet else None
-        if a.look == "tunnel":
+        if a.model:
+            from .models import MODELS
+            from .models.base import render as render_model
+            S = signals.compute(F, r)
+            stills = render_model(MODELS[a.model], F, S, r, a.song, a.start, a.dur, a.out, scale=a.scale,
+                                  caption=not a.no_caption, stills=picks)
+        elif a.look == "tunnel":
             S = signals.compute(F, r)
             print("sections:", ", ".join(f"{s['start']:.1f}s {s['kind']}" for s in S.sections))
             stills = tunnel.render(F, S, r, a.song, a.start, a.dur, a.out, scale=a.scale, overlay=a.overlay,
