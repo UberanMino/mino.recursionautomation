@@ -71,5 +71,10 @@ Webhook-URLs stehen **nicht** im Repo. `config.local.json` (gitignored) oder Env
   hält die Queue für morgen + übermorgen mit je 7 Reels gefüllt und prüft die Posts des Tages — Ablauf in `docs/DAILY_RUN.md`.
 - Slots (±6 min Jitter): 07:40, 10:15, 12:40, 15:10, 17:45, 19:50, 21:40 (+23:05 bei 8 Posts).
 
+## Synästhesie-Engine (Experiment, nicht Teil der Live-Pipeline)
+`synesthesia/` koppelt Musik und Bild nach festen Regeln: Tonhöhe → Höhe, Lautheit → Helligkeit,
+Klangfarbe → Farbe, musikalisches Chaos → visuelles Chaos, Stereo → links/rechts.
+Regelwerk, Messungen und Benutzung: `docs/MAPPING_RULES.md`.
+
 ## Songs
 Siehe `engine/songs.json`. WAV-Master liegen in Dropbox `/mino.recursion/songs/` (nicht im Git).
