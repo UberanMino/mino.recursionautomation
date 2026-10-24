@@ -96,6 +96,35 @@ wächst die Frequenz mit dem Quadrat der Wellenzahl: `f ∝ n² + (m/B)²`.
 
 Hier trägt die Höhe keine Tonhöhe; die Tonhöhe steckt im Muster.
 
+## F · Fraktal-Flug (`fractal.py`)
+
+Endloser Flug durch eine 3D-Fraktalwelt, per Raymarching gerendert (numba, alle Kerne). Die Welt ist ein Gitter aus
+Kaleidoskop-IFS-Würfeln der Menger-Familie (Periode 2):
+`n-mal: p = |p|, sortieren (x ≥ y ≥ z), p = Rot · p, p = s · p − c · (s − 1)` (z nur oberhalb der Mittelebene),
+Abstand = Box(p) / sⁿ. Mit s = 3, c = (1, 1, 1) und Rot = Einheit ist das der Menger-Schwamm, durch jeden Würfel läuft
+ein leerer Korridor entlang z.
+
+| Musik | Bild |
+|---|---|
+| Zeit | Vorwärtsflug wie im Tunnel: Tempo = 0,45 + 0,9 · Lautheit + 0,8 · Spannung + Kick-Schub, ein Würfel pro Takt bei Tempo 1 |
+| Chaos | Faltungsrotation um z (0,9 · C^1,1 · n(t)) und um x (0,6 · C^1,1 · n′(t)), beide auf 0,6 rad begrenzt, ab der zweiten Faltungsebene; Skala s = 3 + 0,35 · C^1,1. Ordnung = exakte Kristall-Architektur, Chaos = verdrehte, überwucherte Feinstruktur |
+| Klangfarbe | Architektur: c = (1, 1 + 0,25 \|z₁\|, 1 + 0,25 \|z₂\|); Farbton der Palette |
+| Frequenz, Lautheit | jede Wand leuchtet mit der Lautheit der Frequenz ihrer Höhe (Boden 30 Hz, Decke 16 kHz), links vom Kurs linker Kanal, rechts rechter, und zwar aus dem Moment, in dem die Jetzt-Ebene diese Stelle erreicht. Die Zukunft liegt sichtbar vor dir |
+| Kick | Lichtring in der Welt an der Stelle, die die Jetzt-Ebene beim Kick erreicht; dazu die Feder: Brennweiten-Punch (1 + 0,25 x), die Welt atmet (s · (1 + 0,025 x)), Belichtung · (1 + 0,6 x) |
+| Abschnitt | Palette dreht um den goldenen Schnitt: jeder Abschnitt eine neue Farbwelt; Rollrichtung wechselt |
+
+**Farbe (reicher als die anderen Modelle):** Orbit-Trap-Färbung mit einer Vollspektrum-Kosinus-Palette
+`rgb = (0,5 + 0,5 · cos(2π(f · log trap + Farbton + 0,14 · Entfernung + (0, ⅓, ⅔))))^2,4`. Der Exponent schiebt zu
+reinen Farbtönen, die Entfernung lässt den Korridor vor dir durch das Spektrum laufen, Chaos erhöht f (mehr
+Farbbänder). Dunkle Schattierung in Spalten, damit Farben nicht ausbleichen.
+
+**Korridor:** Die erste Faltungsebene wird nie gedreht und die Versätze c sind ≥ 1. Damit bleibt der große
+Menger-Korridor entlang z erhalten, Chaos verdreht nur die feineren Ebenen. Geprüft auf ganz Digits (jeder 3. Frame):
+Abstand von der Kamera und einem Ring mit Radius 0,06 um sie zum Fraktal immer ≥ 0,12. Das ist getestet, nicht
+bewiesen. (In einer früheren Fassung, die alle Ebenen drehte, war der Korridor in 5 % der Frames zu.)
+
+Braucht zusätzlich `pip install numba`.
+
 ## Gemessen
 
 Kick-Sync jedes Videos (Digits 47,5–77,5 s, 44 Kicks): mittlere Bildänderung zwischen zwei Frames, gemittelt über
@@ -110,9 +139,12 @@ alle Kicks, im Frame vor dem Kick und im Kick-Frame (Graustufen, 0–255, inklus
 | C Kepler | 1,0 | 8,1 | 8,1 |
 | D Gray-Scott | 5,2 | 21,4 | 4,1 |
 | E Chladni | 3,4 | 19,3 | 5,7 |
+| F Fraktal-Flug (ohne Untertitel) | 11,8 | 26,3 | 2,2 |
 
 Bei allen liegt der Höhepunkt im Frame des Kicks, nicht danach (R3). Die absoluten Werte sind zwischen den Modellen
-nicht vergleichbar (dunkle Bilder ändern sich weniger), der Faktor schon eher.
+nicht vergleichbar (dunkle Bilder ändern sich weniger), der Faktor schon eher. Beim Fraktal-Flug ist der Faktor
+kleiner, weil sich das Bild durch den schnellen Flug ohnehin in jedem Frame stark ändert; die Helligkeit springt im
+Kick-Frame um +10,5 (Frame davor −0,6).
 
 ## Ehrlich eingeordnet
 
