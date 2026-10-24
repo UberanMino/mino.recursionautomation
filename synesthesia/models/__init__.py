@@ -5,5 +5,7 @@ from .grayscott import GrayScott
 from .julia import JuliaZoom
 from .kepler import KeplerSystem
 from .lorenz import LorenzFlight
+from .morph import MorphWorld
 
-MODELS = {m.key: m for m in (LorenzFlight, JuliaZoom, KeplerSystem, GrayScott, ChladniPlate, FractalFlight)}
+MODELS = {m.key: m for m in (LorenzFlight, JuliaZoom, KeplerSystem, GrayScott, ChladniPlate, FractalFlight,
+                                 MorphWorld)}

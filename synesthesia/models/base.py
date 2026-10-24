@@ -215,7 +215,8 @@ class Caption:
 
 
 def render(model_cls, F, S, r: Rules, song, t0, dur, out, fps=30, scale=0.5, caption=True, stills=None,
-           log=print, **kw):
+           log=print, clean_out=None, **kw):
+    """Render a model to `out`; with `clean_out`, the same frames also go to a second video without the caption."""
     W, H = int(1080 * scale) // 2 * 2, int(1920 * scale) // 2 * 2
     M = model_cls(F, S, r, t0, dur, fps, W, H, **kw)
     ow, oh = 1080, 1920
@@ -223,17 +224,24 @@ def render(model_cls, F, S, r: Rules, song, t0, dur, out, fps=30, scale=0.5, cap
     size = f"{ow}x{oh}" if caption else f"{W}x{H}"
     vf = "format=yuv420p" if caption else f"scale={ow}:{oh}:flags=lanczos,format=yuv420p"
     n = M.k_end - M.k_start
-    cmd = ["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", size, "-r", str(fps),
-           "-i", "-", "-ss", f"{M.t0:.6f}", "-t", f"{n / fps:.6f}", "-i", song,
-           "-filter_complex", f"[0:v]{vf}[v];[1:a]afade=t=in:st=0:d=0.03,afade=t=out:st={n / fps - 0.4:.3f}:d=0.4[a]",
-           "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-r", str(fps),
-           "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", out]
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+    def ffmpeg(size, vf, path):
+        cmd = ["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", size, "-r", str(fps),
+               "-i", "-", "-ss", f"{M.t0:.6f}", "-t", f"{n / fps:.6f}", "-i", song,
+               "-filter_complex", f"[0:v]{vf}[v];[1:a]afade=t=in:st=0:d=0.03,afade=t=out:st={n / fps - 0.4:.3f}:d=0.4[a]",
+               "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-r", str(fps),
+               "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", path]
+        return subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+    proc = ffmpeg(size, vf, out)
+    clean = ffmpeg(f"{W}x{H}", f"scale={ow}:{oh}:flags=lanczos,format=yuv420p", clean_out) if clean_out else None
     kept = []
     for k in range(M.k_pre, M.k_end):
         frame = M.frame(k)
         if k < M.k_start:
             continue
+        if clean is not None:
+            clean.stdin.write(frame.tobytes())
         if cap is not None:
             frame = cap.draw(np.asarray(Image.fromarray(frame).resize((ow, oh), Image.BICUBIC)), M, k)
         proc.stdin.write(frame.tobytes())
@@ -241,7 +249,9 @@ def render(model_cls, F, S, r: Rules, song, t0, dur, out, fps=30, scale=0.5, cap
             kept.append(frame.copy())
         if (k - M.k_start) % 90 == 0:
             log(f"  frame {k - M.k_start}/{n}  " + "  ".join(f"{a} {b}" for a, b in M.live.items()))
-    proc.stdin.close()
-    if proc.wait() != 0:
-        raise SystemExit("ffmpeg failed")
+    for p in (proc, clean):
+        if p is not None:
+            p.stdin.close()
+            if p.wait() != 0:
+                raise SystemExit("ffmpeg failed")
     return kept

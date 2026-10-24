@@ -1,4 +1,4 @@
-# Fünf weitere Modelle: dieselbe Musik, andere Naturgesetze
+# Weitere Modelle: dieselbe Musik, andere Naturgesetze
 
 Code: `synesthesia/models/` (je eine Datei pro Modell, gemeinsames Gerüst in `base.py`).
 Alle Modelle lesen dieselben Steuersignale wie der 3D-Tunnel (`synesthesia/signals.py`: Bandlautheit, Spektralprofil
@@ -11,6 +11,8 @@ python3 -m synesthesia song.wav --start 47.5 --dur 30 --model julia     --out b.
 python3 -m synesthesia song.wav --start 47.5 --dur 30 --model kepler    --out c.mp4
 python3 -m synesthesia song.wav --start 47.5 --dur 30 --model grayscott --out d.mp4
 python3 -m synesthesia song.wav --start 47.5 --dur 30 --model chladni   --out e.mp4
+python3 -m synesthesia song.wav --start 47.5 --dur 30 --model fractal   --out f.mp4
+python3 -m synesthesia song.wav --start 47.5 --dur 30 --model morph     --out g.mp4
 #   --no-caption lässt die Untertitel mit den Gesetzen weg
 ```
 
@@ -125,6 +127,51 @@ bewiesen. (In einer früheren Fassung, die alle Ebenen drehte, war der Korridor 
 
 Braucht zusätzlich `pip install numba`.
 
+## G · Gestaltwandler-Welt (`morph.py`)
+
+Baut auf F auf (Flug, Spektrum in den Wänden, Kick-Ringe, Palette), aber das Fraktal selbst ist formbar: es wandelt
+sich ohne Schnitt zwischen ganzen Fraktal-Familien, die Wände atmen und zerfließen, die Spuren sind Regenbogen-Tracer.
+
+**Eine Formel für alle Formen.** Ebene 0 bleibt Menger (sortieren, s₀ = 3 + 0,2 C, c₀ wie in F) und hält die großen
+Hallen offen. Ab Ebene 1 läuft pro Ebene:
+`p = |p|`, sortieren, **Box-Faltung** (Mandelbox) `p = 2·clamp(p, −L, L) − p` mit `L = 1 + 10(1 − w_box)³`,
+**Kugel-Faltung** `r² < m²: p/m²`, `r² < 1: p/r²` mit `m² = 1 − 0,75 w_inv`, `p = Rot · p`, `p = s · p − c(s − 1)`.
+Abstand = `mix(Box(p), |p| − 1, w_rund) / dr` (dr sammelt s und die Faktoren der Kugel-Faltung).
+Jeder Regler wird an einem Ende seines Bereichs zur Identität (w_box = 0: L = 11, keine Faltung; w_inv = 0: m² = 1,
+keine Inversion). Darum hängen alle Formen stetig zusammen, und jedes Überblenden ist nahtlos. Faltungen und
+Spiegelungen sind stückweise Isometrien, die Abstandsschätzung bleibt in jeder Zwischenform gültig.
+
+Sechs Formen (Rotation x/z, w_box, w_inv, w_rund, s, c):
+
+| Form | Werte | Wirkung |
+|---|---|---|
+| Menger | 0, 0, 0, 0, 0, 3,0, (1, 1, 1) | Kristall-Architektur wie F |
+| Kristall | 0,35, 0,25, 0, 0, 0, 2,7, (1, 1,1, 0,9) | verdrehte Kristalle |
+| Höhle | 0, 0, 0,5, 1, 0, 2,8, (1,2, 1,2, 1,2) | Hallen mit Kuppeln und Nischen |
+| Blasen | 0, 0, 0, 0,8, 1, 2,7, (1, 1, 1) | runde, blasige Schwämme |
+| Koralle | 0,2, −0,3, 0,4, 0,4, 0,4, 2,3, (1, 0,7, 1,2) | weiche, wuchernde Formen |
+| Tempel | 0, 0, 0,6, 0, 0, 3,3, (1, 1,3, 1) | Gitter aus Kammern und Fenstern |
+
+| Musik | Bild |
+|---|---|
+| Klangfarbe | wählt die Form: die sechs Formen sitzen auf festen Winkeln der Klangfarben-Ebene (taktgeglättete MFCC-PCA), Gewicht = `exp(−Abstand² / 0,35)`. Gleicher Klang, gleiche Welt |
+| Abschnitt | jeder Abschnitt hat eine Heimat-Form (+1,2 Gewicht); die Anker drehen sich um eine Runde pro 8 Takte · (0,25 + Spannung), damit sich die Welt auch bei gleichbleibender Musik weiter verwandelt |
+| Klangwechsel | Morph-Tempo: die Form folgt ihrem Ziel kritisch gedämpft mit τ = Takt · (1,2 − 0,9 · Klangfarben-Tempo), bei Abschnittseinsätzen ¼ Takt. Schneller Klangwechsel = schnelles Verwandeln, ein neuer Teil = sofort eine neue Welt |
+| Tonal-Anteil, Spannung, Beat | atmende Wände: Raumverzerrung `p + A·sin(W·p_yzx + Phase)`, A = 0,012 + 0,035 · Tonal + 0,02 · Spannung, schwillt mit jedem Beat (· (1 + 0,35 sin(π · Beat))) und mit der Kick-Feder; die Phase fließt mit der Lautheit. Flächen-Sounds lassen die Welt zerfließen, trockene Drums halten sie scharf |
+| Chaos | verdreht die Faltung der tieferen Ebenen (wie F) und erhöht die Skala |
+| Hi-Hats | Tempo, mit dem die Farbstreifen über die Flächen kriechen |
+| Frequenz, Lautheit, Kick, Abschnittsfarbe | wie F |
+
+**Tracer:** Das vorige Bild wird um die Grauachse im Farbton gedreht (0,006 + 0,018 · Tonal Umdrehungen pro Frame),
+mit dem Flug gezoomt, leicht gedreht und per Maximum überlagert: jede Kante zieht eine Regenbogenspur. Der Kick
+schneidet die Spuren um 35 %.
+
+**Flugkanal:** Anders als bei F garantiert die Geometrie allein keinen freien Weg: einige Formen und Mischungen wachsen
+in den Korridor. Deshalb wird ein dünner Kanal (Radius 0,11) mit einem weichen Maximum in die Welt geschnitten.
+Gemessen auf ganz Digits (jeder 3. Frame): in 53 % der Frames reicht die Geometrie näher als 0,11 an die Kamera, der
+Kanal formt dann die Wände direkt um dich herum (sichtbar als Tor oder Röhre), in 7,8 % würde die Form die Kamera
+sonst einschließen. Er sorgt dafür, dass der Flug nie in festem Material steckt; ganz unsichtbar ist er also nicht.
+
 ## Gemessen
 
 Kick-Sync jedes Videos (Digits 47,5–77,5 s, 44 Kicks): mittlere Bildänderung zwischen zwei Frames, gemittelt über
@@ -140,11 +187,13 @@ alle Kicks, im Frame vor dem Kick und im Kick-Frame (Graustufen, 0–255, inklus
 | D Gray-Scott | 5,2 | 21,4 | 4,1 |
 | E Chladni | 3,4 | 19,3 | 5,7 |
 | F Fraktal-Flug (ohne Untertitel) | 11,8 | 26,3 | 2,2 |
+| G Gestaltwandler-Welt (ohne Untertitel) | 13,8 | 31,8 | 2,3 |
 
 Bei allen liegt der Höhepunkt im Frame des Kicks, nicht danach (R3). Die absoluten Werte sind zwischen den Modellen
 nicht vergleichbar (dunkle Bilder ändern sich weniger), der Faktor schon eher. Beim Fraktal-Flug ist der Faktor
 kleiner, weil sich das Bild durch den schnellen Flug ohnehin in jedem Frame stark ändert; die Helligkeit springt im
-Kick-Frame um +10,5 (Frame davor −0,6).
+Kick-Frame um +10,5 (Frame davor −0,6). Bei der Gestaltwandler-Welt ebenso: Helligkeit +12,1 im Kick-Frame
+(Frame davor −2,4).
 
 ## Ehrlich eingeordnet
 
@@ -163,3 +212,7 @@ Kick-Frame um +10,5 (Frame davor −0,6).
 - J. Milnor: *Dynamics in One Complex Variable* (Koenigs-Linearisierung, Multiplikatoren, Julia-Mengen).
 - E. F. F. Chladni (1787): *Entdeckungen über die Theorie des Klanges*.
 - J. Kepler (1619): *Harmonices Mundi* (drittes Gesetz).
+- Mandelbox (Box- und Kugel-Faltung): Tom Lowe, 2010, im Forum fractalforums.com veröffentlicht. Den genauen
+  Beitrag habe ich nicht nachgeschlagen.
+- Kaleidoskop-IFS (abs/sortieren/skalieren, Grundlage von F und G): „Knighty“, fractalforums.com; ebenfalls nicht
+  im Einzelnen nachgeschlagen.
