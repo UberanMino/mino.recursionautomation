@@ -26,6 +26,8 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    (welche Shots, welcher Hero) und committet + pusht die Datei am Ende selbst. Meldet es
    `warn: git … failed`, die Datei von Hand committen und pushen, sonst wiederholen sich die Reels.
 8. `python3 engine/shots.py report` ausführen. Steht dort **NEUE SHOTS FÄLLIG** → Shot-Werkstatt (unten).
+   `daily.py` druckt denselben Hinweis als `!!!`-Block am Anfang und Ende seines Logs: dann die
+   Shot-Werkstatt in derselben Sitzung erledigen, bevor sie endet.
 
 ## Shot-Werkstatt (Abwechslung)
 

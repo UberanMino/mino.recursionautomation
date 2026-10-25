@@ -81,7 +81,22 @@ def schedule(day, count, songs, fmt=None):
     return out
 
 
+def shot_workshop_notice():
+    """Loud reminder for the scheduled session: new shots are due -> Shot-Werkstatt (docs/DAILY_RUN.md)."""
+    text, due = S.report()
+    if not due:
+        return
+    bar = "!" * 78
+    print(f"\n{bar}\nNEUE SHOTS FÄLLIG (Raphael: laufend neue, stilpassende Shots entwickeln)\n"
+          f"{text}\n"
+          "=> Für den Claude-Lauf: in dieser Sitzung noch die Shot-Werkstatt aus docs/DAILY_RUN.md erledigen:\n"
+          "   1-2 neue Szenen/Silhouetten in engine/shaders/lines.glsl + engine/shots.py (added=<heute>),\n"
+          "   python3 engine/tools/line_sheet.py --since <heute> --white ansehen, committen, pushen.\n"
+          f"{bar}\n", flush=True)
+
+
 def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
+    shot_workshop_notice()
     songs = available_songs()
     if not songs:
         raise SystemExit("no songs available locally or in Dropbox /mino.recursion/songs")
@@ -119,6 +134,7 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
         json.dump(state, open(state_path, "w"), indent=1)
         print(f"queued {plan['id']} for {it['due']} ({it['render_s']}s)")
     persist_shot_history(day)
+    shot_workshop_notice()
     return state
 
 

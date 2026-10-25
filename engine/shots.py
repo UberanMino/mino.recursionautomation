@@ -75,9 +75,14 @@ LINE_SCENES = {
     23: ("topo", lambda r: [r.uniform(1.2, 2.2), r.uniform(0.8, 1.3), 0]),
     24: ("orbits", lambda r: [r.choice([3, 4, 5]), r.uniform(0.7, 0.9), 0]),
     25: ("icosa", lambda r: [r.uniform(0.6, 0.85), 0, r.choice([0, 1])]),
+    26: ("gyro", lambda r: [r.uniform(0.8, 0.95), r.choice([3, 4, 5]), 0]),
+    27: ("moire", lambda r: [r.uniform(12, 22), r.uniform(0.04, 0.12), 1]),   # radial only: linear gratings shimmer into noise
 }
 # scenes that also read well on off-white
-LINE_WHITE_OK = {0, 3, 4, 6, 7, 8, 9, 10, 13, 14, 15, 17, 18, 19, 20, 21, 23, 24, 25}
+LINE_WHITE_OK = {0, 3, 4, 6, 7, 8, 9, 10, 13, 14, 15, 17, 18, 19, 20, 21, 23, 24, 25, 26}
+
+# scenes added by the shot workshop (date = novelty clock in the report)
+SCENE_ADDED = {26: "2026-10-25", 27: "2026-10-25"}
 
 SIL_SHAPES = ["bust", "profile", "figure", "hand", "mushroom", "cat", "eye", "pyramid", "planet", "heart", "star",
               "alien", "moon", "crystal", "keyhole"]
@@ -94,7 +99,8 @@ def _catalog():
     for sid, (name, _) in LINE_SCENES.items():
         if sid in (13, 9, 18, 19):
             continue
-        add(name, sid, weight={14: 1.6, 2: 1.4, 3: 1.2}.get(sid, 1.0), hero={14: 2.0, 2: 2.0}.get(sid, 1.5))
+        add(name, sid, weight={14: 1.6, 2: 1.4, 3: 1.2}.get(sid, 1.0), hero={14: 2.0, 2: 2.0}.get(sid, 1.5),
+            added=SCENE_ADDED.get(sid, "2026-10-21"))
     add("dots/round", 9, {2: 0}, 0.5)
     add("dots/square", 9, {2: 1}, 0.5)
     for a, b in [(3, 2), (5, 4), (3, 4), (5, 2), (1, 3)]:
