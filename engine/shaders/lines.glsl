@@ -687,6 +687,42 @@ vec3 lIcosa(vec2 p){
   return c;
 }
 
+// ---------- shot workshop 2026-10-25 ----------
+// 26 gyroscope: great circles of a sphere spinning on different axes, see-through
+vec3 lGyro(vec2 p){
+  vec3 c=BG();
+  float R=uPrm.x*(1.0+0.04*uKick);
+  float n=floor(uPrm.y);
+  for(int i=0;i<6;i++){
+    float fi=float(i);
+    if(fi>=n) break;
+    float tilt=uT*(0.35+0.2*fi)*(mod(fi,2.0)*2.0-1.0)+fi*1.1;
+    float yaw=fi*PI/n+uT*0.1;
+    vec2 q=rot(yaw)*p;
+    vec2 e=vec2(R, R*abs(cos(tilt))+0.004);
+    float k0=length(q/e), k1=length(q/(e*e));
+    float d=k0*(k0-1.0)/k1;
+    float back=step(0.0,q.y*sign(cos(tilt))*sign(sin(tilt)));   // far half of the ring dimmer
+    c=paint(c, L(d,0.005)*(1.0-0.55*back), mod(fi,3.0)<0.5&&!WHITE()?mix(ac(),vec3(1),0.5):ac());
+    if(!WHITE()) c+=ac()*exp(-abs(d)*45.0)*0.12;
+  }
+  float core=fract(length(p)/(R*0.12)-uT*1.5);
+  c=paint(c, L(min(core,1.0-core),0.1)*step(length(p),R*0.25), WHITE()?INK():vec3(1));
+  return c;
+}
+// 27 moire: two fine line gratings sliding over each other, interference bands breathe with the bass
+vec3 lMoire(vec2 p){
+  float f=uPrm.x;
+  vec2 q1=rot(uT*0.05)*p, q2=rot(-uT*0.05+uPrm.y*(1.0+0.3*uBass))*p;
+  float w1=uPrm.z>0.5 ? length(q1)*f : q1.y*f;
+  float w2=uPrm.z>0.5 ? length(q2+vec2(0.22*sin(uT*0.7),0.12+0.06*uBass))*f : q2.y*f;
+  float a=LP(fract(w1-uT*0.3)-0.5,3.0), b=LP(fract(w2+uT*0.2)-0.5,3.0);
+  vec3 c=BG();
+  c=paint(c, a, ac());
+  c=paint(c, b, WHITE()?INK():mix(ac(),vec3(1),0.6));
+  return c;
+}
+
 vec3 scene(int id, vec2 p){
   if(id==0) return lWeave(p);
   if(id==1) return lTunnel(p);
@@ -713,6 +749,8 @@ vec3 scene(int id, vec2 p){
   if(id==22) return lRain(p);
   if(id==23) return lTopo(p);
   if(id==24) return lOrbits(p);
+  if(id==26) return lGyro(p);
+  if(id==27) return lMoire(p);
   return lIcosa(p);
 }
 
