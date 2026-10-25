@@ -22,9 +22,9 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    @mino.recursion-Reels (absurde, mystische Ich-Mikrogeschichte, „So there I was …" / „Yo so basically … innit",
    Gen-Z-Humor, ein paar Keywords wie trance, fractal, third eye, frequency, 152 BPM). Keine Wiederholungen. Committen.
 6. Stichprobe: 1–2 Renders als Kontaktbogen ansehen (`build/review/`), bevor sie live gehen.
-7. Shot-Gedächtnis committen: `daily.py` trägt jedes geplante Reel in `engine/shot_history.json` ein
-   (welche Shots, welcher Hero). Die Datei **immer mit committen und pushen**, sonst weiß der Lauf
-   morgen nicht, was heute lief, und die Reels wiederholen sich wieder.
+7. Shot-Gedächtnis: `daily.py` trägt jedes geplante Reel in `engine/shot_history.json` ein
+   (welche Shots, welcher Hero) und committet + pusht die Datei am Ende selbst. Meldet es
+   `warn: git … failed`, die Datei von Hand committen und pushen, sonst wiederholen sich die Reels.
 8. `python3 engine/shots.py report` ausführen. Steht dort **NEUE SHOTS FÄLLIG** → Shot-Werkstatt (unten).
 
 ## Shot-Werkstatt (Abwechslung)
