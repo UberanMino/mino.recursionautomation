@@ -5,9 +5,10 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
 
 1. Repo auf Branch `claude/relaxed-dijkstra-teb4bo`, `npm ci` (falls `node_modules` fehlt).
 2. `config.local.json` schreiben (gitignored). Die URLs liefern die Make-Hooks
-   3948188 (Dropbox links) und 3948189 (Queue füllen) — per Make-MCP `hooks_get`:
+   3948188 (Dropbox links), 3948189 (Queue füllen) und 3975180 (Insights lesen) — per Make-MCP `hooks_get`:
    ```json
-   {"dropbox_hook": "https://hook.eu1.make.com/…", "queue_hook": "https://hook.eu1.make.com/…"}
+   {"dropbox_hook": "https://hook.eu1.make.com/…", "queue_hook": "https://hook.eu1.make.com/…",
+    "insights_hook": "https://hook.eu1.make.com/…"}
    ```
 3. `python3 engine/daily.py --date <morgen> --count 7`
    - dauert im Line-Stil ca. 5–6 min pro Reel (~40 min für 7) → im Hintergrund mit Timeout 3600000 ms starten
@@ -18,7 +19,9 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
    - Make Data Store `mino_recursion_queue` (227426): 7 Einträge mit `due_ts` am Folgetag
    - Make Data Store `mino_recursion_posted` (227427): heutige Posts, `FAILED` = Fehler bei FB oder IG
    - Szenario 8092663 (Reel-Queue posten) aktiv, keine Fehler-Executions
-5. Captions: `engine/captions.json` um 7 neue Geschichten erweitern — gleiche Stimme wie die alten
+5. Captions: zuerst in `build/analytics/report.md` (oder `python3 engine/analytics.py report`) den Abschnitt
+   „Caption-Einstieg“ ansehen und Einstiege mit Signal ↑ etwas öfter nehmen (Stimme bleibt dieselbe).
+   Dann `engine/captions.json` um 7 neue Geschichten erweitern — gleiche Stimme wie die alten
    @mino.recursion-Reels (absurde, mystische Ich-Mikrogeschichte, „So there I was …" / „Yo so basically … innit",
    Gen-Z-Humor, ein paar Keywords wie trance, fractal, third eye, frequency, 152 BPM). Keine Wiederholungen. Committen.
 6. Stichprobe: 1–2 Renders als Kontaktbogen ansehen (`build/review/`), bevor sie live gehen.
@@ -28,6 +31,23 @@ Make postet sie dann zu den Slot-Zeiten (Europe/Berlin) auf FB-Seite *Mino.recur
 8. `python3 engine/shots.py report` ausführen. Steht dort **NEUE SHOTS FÄLLIG** → Shot-Werkstatt (unten).
    `daily.py` druckt denselben Hinweis als `!!!`-Block am Anfang und Ende seines Logs: dann die
    Shot-Werkstatt in derselben Sitzung erledigen, bevor sie endet.
+
+## Analyse-Schleife (was performt)
+
+Die geplante Aufgabe „mino.recursion – Tägliche Reel-Analyse“ (19:37 Berlin, vor dem Render um 20:20) führt
+`python3 engine/analytics.py daily` aus: holt über Make (Szenario 8172957, nur lesend) die IG-Insights aller
+Reels der letzten 14 Tage nach `engine/analytics/insights.json`, verknüpft sie mit Song, Shots
+(`engine/shot_history.json`, für Reels vor dem 27.10. `engine/analytics/legacy_shots.json`), erstem Shot,
+Caption-Einstieg, Hashtag-Set und Slot und schreibt `engine/analytics/weights.json` + einen Bericht.
+Score pro Reel = Mittel aus Hook (–Skip-Rate), Ø Watch-Zeit, Interaktionen/Reichweite und Aufrufe relativ zum
+Tagesmittel. Effekte werden stark auf 0 geschrumpft (wenige Reels = kaum Änderung).
+
+Die Gewichte wirken nur innerhalb des freigegebenen Line-Stils V4:
+- `daily.py`: jeder Song mindestens 1× pro Tag, die übrigen Slots gewichtet nach Song-Performance
+- `shots.py`: Familien-Multiplikator im Casting (Cooldown, Caps, Neuheits-Bonus bleiben vorrangig)
+- erster Schnitt: Familien mit niedriger Skip-Rate eröffnen öfter
+- Slots, Captions, Hashtags: nur Bericht; Slot-Zeiten oder Stil nur nach Rücksprache mit Raphael ändern.
+Facebook hat in Make kein Reel-Insights-Modul, daher misst die Schleife nur IG.
 
 ## Shot-Werkstatt (Abwechslung)
 

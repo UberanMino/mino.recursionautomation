@@ -29,6 +29,7 @@ from collections import Counter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HISTORY = os.path.join(ROOT, "engine", "shot_history.json")
+PERF = os.path.join(ROOT, "engine", "analytics", "weights.json")   # written by engine/analytics.py
 
 RULES = {
     "cast_size": (7, 9),          # distinct shots per reel
@@ -126,6 +127,16 @@ def family(key):
     return "/".join(parts[:2]) if is_sil(key) else parts[0]
 
 
+def perf_weights(path=PERF):
+    """performance multipliers from the daily analysis (families, first shot); neutral when missing"""
+    try:
+        with open(path) as f:
+            w = json.load(f)
+        return {"families": w.get("families", {}), "first": w.get("first", {})}
+    except (OSError, ValueError):
+        return {"families": {}, "first": {}}
+
+
 # ---------------------------------------------------------------- history
 def load_history(path=HISTORY):
     if os.path.exists(path):
@@ -142,16 +153,21 @@ def save_history(hist, path=HISTORY):
 
 
 def record(hist, plan, date=None):
-    """Store which shots a line plan uses (idempotent per plan id)."""
-    shots = Counter(s["shot"] for s in plan["segments"] if s.get("shot"))
-    if not shots:
+    """Store which shots a line plan uses (idempotent per plan id). first/open feed the analytics (skip rate)."""
+    segs = [s for s in plan["segments"] if s.get("shot")]
+    if not segs:
         return
+    body = segs[:-1] if len(segs) > 1 else segs           # the last segment repeats the first (seamless loop)
+    shots = Counter(s["shot"] for s in body)
     screen = Counter()
-    for s in plan["segments"]:
-        if s.get("shot"):
-            screen[s["shot"]] += s["t1"] - s["t0"]
+    for s in body:
+        screen[s["shot"]] += s["t1"] - s["t0"]
+    opening = []
+    for s in segs:
+        if s["t0"] < 3.0 and s["shot"] not in opening:
+            opening.append(s["shot"])
     entry = {"id": plan["id"], "date": date or dt.date.today().isoformat(), "shots": dict(sorted(shots.items())),
-             "hero": screen.most_common(1)[0][0]}
+             "hero": screen.most_common(1)[0][0], "first": segs[0]["shot"], "open": opening}
     hist["reels"] = [r for r in hist["reels"] if r["id"] != plan["id"]] + [entry]
 
 
@@ -167,6 +183,7 @@ class Picker:
         self.fam_window = Counter(f for x in self.window for f in {family(k) for k in x["shots"]})
         self.ever = Counter(k for x in reels for k in x["shots"])
         self.recent_keys = {k for x in self.recent for k in x["shots"]}
+        self.perf = perf_weights()
 
     def freshness(self, key):
         w = 1.0 / (1.0 + self.in_window[key])
@@ -175,7 +192,7 @@ class Picker:
             w *= 0.15
         if self.ever[key] < RULES["novelty_uses"]:
             w *= RULES["novelty_boost"]
-        return w
+        return w * self.perf["families"].get(family(key), 1.0)   # what performed (analytics), gently
 
     def _draw(self, pool, n, taken):
         out = []
@@ -213,18 +230,23 @@ class Picker:
                 cast += self._draw([k for k in pool if family(k) not in fams], want, cast)
         return cast
 
+    def first_weights(self, cast):
+        """weight for the opening cut: families with a lower skip rate open more often (analytics)"""
+        return {k: self.perf["first"].get(family(k), 1.0) for k in cast}
+
     def cut_weights(self, cast):
         """weight per shot for the cuts inside one reel; the hero of recent reels may not lead again"""
         return {k: CATALOG[k]["hero"] * (0.4 if k in self.heroes else 1.0) for k in cast}
 
 
-def sequence(r, cast, weights, n_cuts):
-    """Assign a shot to each cut: no shot twice in a row, none above MAX_SHARE of the cuts."""
+def sequence(r, cast, weights, n_cuts, first=None):
+    """Assign a shot to each cut: no shot twice in a row, none above MAX_SHARE of the cuts.
+    `first` (optional) multiplies the weights of the opening cut (the first 3 s decide the skip rate)."""
     cap = max(2, int(RULES["max_share"] * n_cuts + 0.999))
     used, out, last = Counter(), [], None
-    for _ in range(n_cuts):
+    for i in range(n_cuts):
         pool = [k for k in cast if k != last and used[k] < cap] or [k for k in cast if k != last] or cast
-        k = r.choices(pool, [weights[x] for x in pool])[0]
+        k = r.choices(pool, [weights[x] * (first.get(x, 1.0) if (first and i == 0) else 1.0) for x in pool])[0]
         out.append(k)
         used[k] += 1
         last = k

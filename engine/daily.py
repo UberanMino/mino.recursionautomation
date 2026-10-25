@@ -64,6 +64,30 @@ def available_songs():
     return have
 
 
+def song_weights():
+    """song multipliers from the daily analysis (engine/analytics/weights.json); empty = plain rotation"""
+    try:
+        return json.load(open(os.path.join(ROOT, "engine", "analytics", "weights.json"))).get("songs", {})
+    except (OSError, ValueError):
+        return {}
+
+
+def day_songs(day, count, songs):
+    """Every song at least once a day (rotating order), the remaining slots go to songs drawn by their
+    performance weight. Order shuffled per day so no song sticks to one slot (and none plays twice in a row)."""
+    if count <= len(songs):
+        return [songs[(day.toordinal() + i) % len(songs)] for i in range(count)]
+    w = song_weights()
+    r = random.Random(day.toordinal() * 31 + 7)
+    out = [songs[(day.toordinal() + i) % len(songs)] for i in range(len(songs))]
+    out += r.choices(songs, [w.get(k, 1.0) for k in songs], k=count - len(songs))
+    for _ in range(50):
+        r.shuffle(out)
+        if all(a != b for a, b in zip(out, out[1:])):
+            break
+    return out
+
+
 def schedule(day, count, songs, fmt=None):
     r = random.Random(day.toordinal())
     fmts = FORMATS[:count] if count <= len(FORMATS) else (FORMATS * 2)[:count]
@@ -71,11 +95,12 @@ def schedule(day, count, songs, fmt=None):
     if fmt:
         fmts = [fmt] * count
     slots = SLOTS[:count] if count <= 7 else SLOTS[:count]
+    picks = day_songs(day, count, songs)
     out = []
     for i in range(count):
         hh, mm = map(int, slots[i % len(slots)].split(":"))
         when = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ) + dt.timedelta(minutes=r.randint(-6, 6))
-        song = songs[(day.toordinal() + i) % len(songs)]
+        song = picks[i]
         seed = (day.toordinal() % 10000) * 10 + i
         out.append({"slot": i, "due": when.isoformat(), "due_ts": int(when.timestamp()), "format": fmts[i], "song": song, "seed": seed})
     return out
