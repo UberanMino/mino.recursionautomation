@@ -58,19 +58,16 @@
       "mafia"
     ]
   },
-  "dat_swag": {
-    "title": "Dat Swag",
-    "file": "assets/audio/dat_swag.wav",
-    "drive_id": "1I0QHpsmGkflLD2X1qNgl2uKTqL7iQYV6",
+  "free_your_mind": {
+    "title": "Free Your Mind",
+    "file": "assets/audio/free_your_mind.wav",
     "words": [
-      "DAT",
-      "SWAG",
-      "IS",
-      "TOO",
-      "MUCH"
+      "FREE",
+      "YOUR",
+      "MIND"
     ],
     "tags": [
-      "datswag"
+      "freeyourmind"
     ]
   }
 }

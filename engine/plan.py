@@ -473,7 +473,12 @@ class Director:
         pool = load(os.path.join(ROOT, "engine", "captions.json"))
         stories, sets = pool["stories"], pool["hashtag_sets"]
         day, slot = divmod(self.seed, 10)
-        idx = (day * 7 + slot) % len(stories)          # daily seeds = date*10 + slot -> a new story every slot
+        if day >= 9912:   # from 2026-10-23: stories 42, 43, ... in order (the daily run appends 7 per day)
+            idx = 42 + (day - 9912) * 7 + slot
+            if idx >= len(stories):
+                idx = idx % len(stories)
+        else:
+            idx = (day * 7 + slot) % len(stories)
         tags = sets[idx % len(sets)]
         return (f"{stories[idx]}\n\n"
                 f"🎧 mino.recursion — {self.song['title']}\n"
