@@ -118,7 +118,28 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
                    "render_s": round(time.time() - t0, 1)})
         json.dump(state, open(state_path, "w"), indent=1)
         print(f"queued {plan['id']} for {it['due']} ({it['render_s']}s)")
+    persist_shot_history(day)
     return state
+
+
+def persist_shot_history(day):
+    """Commit + push engine/shot_history.json so the next run (fresh container) knows which shots ran."""
+    path = os.path.relpath(S.HISTORY, ROOT)
+    git = ["git", "-C", ROOT]
+    if not subprocess.run(git + ["status", "--porcelain", path], capture_output=True, text=True).stdout.strip():
+        return
+    branch = subprocess.run(git + ["rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip()
+    push = ["push", "origin", f"HEAD:{branch}"]
+    for step in (["add", path], ["commit", "-m", f"Shot history: reels for {day.isoformat()}", "--", path], push):
+        r = subprocess.run(git + step, capture_output=True, text=True)
+        if r.returncode != 0 and step is push:   # branch moved on: rebase onto it once (refuses on a dirty tree)
+            r = subprocess.run(git + ["pull", "--rebase", "origin", branch], capture_output=True, text=True)
+            if r.returncode == 0:
+                r = subprocess.run(git + push, capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"warn: git {step[0]} for shot history failed, push {path} by hand:", r.stderr.strip()[-300:])
+            return
+    print("shot history committed and pushed")
 
 
 if __name__ == "__main__":
