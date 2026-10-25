@@ -19,6 +19,8 @@ import os
 import random
 import zlib
 
+import shots as S
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # scene id -> (name, param sampler, palettes, family)
@@ -39,25 +41,8 @@ SCENES = {
     13: ("melt", lambda r: [r.uniform(2, 5), r.uniform(0.4, 1.2), r.uniform(0.6, 1.5), 0], [1, 5, 0, 4], "color"),
     14: ("bigeye", lambda r: [r.uniform(0.7, 0.95), r.uniform(0.25, 0.5), 0, 0], [2, 6, 3], "eye"),
 }
-# minimal line-art library (engine/shaders/lines.glsl): one accent colour, black or off-white ground
-LINE_SCENES = {
-    0: ("weave", lambda r: [r.uniform(6, 9), 0, 0]),
-    1: ("wiretunnel", lambda r: [r.uniform(14, 24), r.uniform(0.5, 1.0), r.choice([0, 1])]),
-    2: ("wireroom", lambda r: [r.choice([6, 8, 10]), r.uniform(0.6, 1.2), 0]),
-    3: ("tesseract", lambda r: [r.uniform(0.8, 1.05), 0, 0]),
-    4: ("stripesphere", lambda r: [r.uniform(0.45, 0.65), r.uniform(0.8, 1.4), 0]),
-    5: ("dashsphere", lambda r: [r.uniform(0.6, 0.8), r.uniform(1.6, 2.4), 0]),
-    6: ("wormhole", lambda r: [r.uniform(9, 13), r.uniform(0.4, 0.9), 0]),
-    7: ("isocubes", lambda r: [r.uniform(2.5, 4.0), r.uniform(0.6, 1.4), 0]),
-    8: ("burst", lambda r: [r.uniform(0.28, 0.4), 0, 0]),
-    9: ("dots", lambda r: [r.uniform(4, 6), r.uniform(0.6, 1.0), r.choice([0, 1])]),
-    10: ("zigzag", lambda r: [r.choice([6, 8, 10]), r.uniform(2.0, 3.0), 0]),
-    11: ("lasers", lambda r: [r.uniform(0.8, 1.3), 0, 0]),
-    12: ("ridges", lambda r: [r.choice([28, 34, 40]), r.uniform(0.8, 1.3), 0]),
-    13: ("silhouette", lambda r: [r.randint(0, 10), r.randint(0, 4), r.uniform(1.0, 1.35)]),
-    14: ("cubes", lambda r: [r.choice([2, 2.5, 3]), r.uniform(0.5, 1.2), 0]),
-}
-LINE_WHITE_OK = {0, 4, 6, 7, 9, 10, 3, 8, 13, 14}   # scenes that also read well on off-white
+# minimal line-art library (engine/shaders/lines.glsl): catalogue, variants and usage memory live in engine/shots.py
+LINE_SCENES, LINE_WHITE_OK = S.LINE_SCENES, S.LINE_WHITE_OK
 TRANS = {"cut": 0, "zoom": 1, "iris": 2, "glitch": 3, "swirl": 4, "kaleido": 5, "melt": 6, "pixel": 7, "slit": 8, "liquid": 9}
 PAL_RGB = {0: [1.0, 0.8, 0.0], 1: [1.0, 0.15, 0.8], 2: [0.96, 0.92, 0.82], 3: [0.88, 0.06, 0.16],
            4: [0.45, 0.76, 1.0], 5: [0.6, 1.0, 0.2], 6: [0.96, 0.55, 0.42], 7: [0.2, 1.0, 0.35]}
@@ -124,7 +109,7 @@ def rel(times, t0, t1):
 
 
 class Director:
-    def __init__(self, song_key, fmt, seed):
+    def __init__(self, song_key, fmt, seed, history=None):
         self.songs = load(os.path.join(ROOT, "engine", "songs.json"))
         self.key = song_key
         self.song = self.songs[song_key]
@@ -135,6 +120,7 @@ class Director:
         self.bpm = self.an["bpm"]
         self.bar = 4 * 60.0 / self.bpm
         self.used_scenes = []
+        self.history = history if history is not None else S.load_history()
 
     # ----- helpers -----
     def pick_window(self, pre_bars, total_bars):
@@ -410,17 +396,21 @@ class Director:
             if self.r.random() < 0.12:
                 hold = self.r.choice([1, 2, 3])                      # let a hero shot breathe
         cuts = sorted(set(c for c in cuts if c < D - 0.05))
-        weights = {13: 6, 14: 3, 2: 3, 3: 2, 0: 2, 6: 2, 1: 2, 8: 2, 5: 2, 4: 1, 7: 1, 10: 1, 9: 1, 11: 1, 12: 1}
-        last = None
+        # which shots: a per-reel cast picked against the usage history (engine/shots.py), then one shot per cut
+        picker = S.Picker(self.r, self.history, exclude_ids={plan["id"]})
+        cast = picker.cast()
+        seq = S.sequence(self.r, cast, picker.cut_weights(cast), len(cuts))
+        plan["cast"] = cast
         for k, c in enumerate(cuts):
             t1 = cuts[k + 1] if k + 1 < len(cuts) else D
-            pool = [x for x in weights if x != last or x == 13]
-            sid = self.r.choices(pool, [weights[x] for x in pool])[0]
+            key = seq[k]
+            sid = S.CATALOG[key]["scene"]
             white = sid in LINE_WHITE_OK and self.r.random() < 0.3
             pal = self.r.choice([0, 1, 2, 3, 5]) if not white else self.r.choice([6, 3, 2])
-            prm = [round(x, 4) for x in LINE_SCENES[sid][1](self.r)] + [1 if white else 0]
+            prm = S.params(self.r, key) + [1 if white else 0]
             plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
-                                     "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3), "speed": round(self.r.uniform(1.5, 2.4), 3),
+                                     "shot": key, "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3),
+                                     "speed": round(self.r.uniform(1.5, 2.4), 3),
                                      "zoom": round(self.r.uniform(0.9, 1.15), 3), "rot": round(self.r.uniform(-0.3, 0.3), 3),
                                      "spin": round(self.r.choice([-1, 1]) * self.r.uniform(0.25, 1.1), 3),
                                      "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9), 3), "zoomPulse": 0.08,
@@ -428,7 +418,6 @@ class Director:
                                      "mirror": 4 if (sid == 6 and self.r.random() < 0.25) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
                 plan["transitions"].append({"t": round(c, 4), "dur": 0.034, "type": TRANS["cut"], "name": "cut"})
-            last = sid
         # strobe: a 1-2 frame flash on every kick; in some bars on every 8th (max one bar in a row)
         burst_bars = set(self.r.sample(range(8), 2))
         downs = plan["downbeats"]

@@ -32,7 +32,11 @@ engine/daily.py  = alles zusammen für einen Tag (7–8 Slots, Europe/Berlin)
 Silhouetten (Köpfe, Figur, Hand, Pilz, Katze, Auge, Planet …), Wireframe-Würfel/-Räume/-Tunnel, Weave, Checker-Wurmloch,
 Partikel-Kugel, Faser-Burst. Cuts auf Achteln (16tel-Bursts), 16tel-Flackern (Invert / Tint / kurze Spiegel-Hits / Stutter),
 harter Strobe auf jedem Kick, Zoom-/Glow-Puls, Kamerafahrt pro Shot, Neon-Gradient-Map-Grading, kein Text, kein Wasserzeichen.
-Szenen: `engine/shaders/lines.glsl`. Ältere Formate (unten) bleiben per `--format` verfügbar.
+Szenen: `engine/shaders/lines.glsl` (26 Szenen, 15 Silhouetten-Formen × 5 Füllungen = 108 Shots).
+Abwechslung: `engine/shots.py` castet pro Reel 7–9 Shots gegen ein Nutzungs-Gedächtnis
+(`engine/shot_history.json`, Cooldown + Häufigkeitslimit), `python3 engine/shots.py report` zeigt die Nutzung
+und wann neue Shots fällig sind (Ablauf: `docs/DAILY_RUN.md`, Shot-Werkstatt).
+Ältere Formate (unten) bleiben per `--format` verfügbar.
 
 | Format | Idee |
 |---|---|
@@ -54,6 +58,8 @@ python3 engine/daily.py --date 2026-10-22 --dry-run     # Plan anzeigen
 python3 engine/daily.py --date 2026-10-22               # 7 Reels rendern + einplanen
 python3 engine/daily.py --now --count 1 --format stare  # eins sofort posten
 python3 engine/tools/scene_sheet.py                     # Kontaktbogen aller Szenen (build/scenesheet.jpg)
+python3 engine/tools/line_sheet.py --since 2026-10-21   # Kontaktbogen der Line-Shots (build/linesheet.jpg)
+python3 engine/shots.py report                          # Shot-Nutzung, neue Shots fällig?
 ```
 
 Webhook-URLs stehen **nicht** im Repo. `config.local.json` (gitignored) oder Env-Variablen

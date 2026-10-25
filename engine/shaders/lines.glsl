@@ -28,6 +28,8 @@ float noise(vec2 p){
 }
 // anti-aliased line mask for a distance field value d (0 on the line), half width w
 float L(float d, float w){ float aa=fwidth(d)*1.2+1e-5; return smoothstep(w+aa, w-aa, abs(d)); }
+// line of roughly constant pixel width px, for fields whose scale changes a lot across the frame
+float LP(float d, float px){ return 1.0-smoothstep(px*0.5, px*0.5+1.2, abs(d)/max(fwidth(d),1e-5)); }
 float segD(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
 
 vec3 accent(){
@@ -366,6 +368,18 @@ float shapeSD(int id, vec2 p){
     return min(pl,ring);
   }
   if(id==9) return sdHeart(p*1.25+vec2(0.0,0.62))/1.25;
+  if(id==11){ // alien head with almond eyes cut out
+    float d=smin(sdEll(p,vec2(0.0,0.18),vec2(0.44,0.46)), sdEll(p,vec2(0.0,-0.28),vec2(0.17,0.32)),0.22);
+    vec2 q=p-vec2(0.17,0.08); q=rot(-0.55)*q; float e=sdEll(q,vec2(0.0),vec2(0.15,0.07));
+    q=p-vec2(-0.17,0.08); q=rot(0.55)*q; e=min(e,sdEll(q,vec2(0.0),vec2(0.15,0.07)));
+    return max(d,-e);
+  }
+  if(id==12) return max(sdCirc(p,vec2(0.0),0.58), -sdCirc(p,vec2(0.26,0.14),0.5));   // crescent moon
+  if(id==13){ // crystal: cut gem standing on its tip
+    float hw=p.y>0.15 ? 0.42-(p.y-0.15)*0.6 : 0.42*(p.y+0.62)/0.77;
+    return max(max(abs(p.x)-hw, p.y-0.45), -0.62-p.y)*0.8;
+  }
+  if(id==14) return min(sdCirc(p,vec2(0.0,0.22),0.3), sdBoxR(p,vec2(0.0,-0.3),vec2(0.17,0.42),0.02));   // keyhole
   return sdStar5(p,0.6,0.45);
 }
 // 13 silhouette: prm.x shape, prm.y fill style, prm.z scale
@@ -439,6 +453,240 @@ vec3 lCubes(vec2 p){
   return c;
 }
 
+// ---------- library v2 (2026-10-21): more shots so reels stop looking alike ----------
+// 15 see-through wireframe globe: back lines dim, front lines bright
+float globeMask(vec2 p, float R, float side){
+  float r=length(p);
+  if(r>=R) return 0.0;
+  vec3 n=vec3(p/R, side*sqrt(max(1.0-r*r/(R*R),0.0)));
+  n.yz=rot(0.4)*n.yz;
+  n.xz=rot(uT*uPrm.y)*n.xz;
+  float nl=floor(uPrm.z);
+  float gl=fract(asin(clamp(n.y,-1.0,1.0))/PI*nl+0.5), gm=fract(atan(n.z,n.x)/TAU*nl*1.5);
+  return max(L(min(gl,1.0-gl),0.035), L(min(gm,1.0-gm),0.035));
+}
+vec3 lGlobe(vec2 p){
+  float R=uPrm.x*(1.0+0.05*uKick);
+  vec3 c=BG();
+  if(!WHITE()) c+=ac()*0.10*smoothstep(R*1.6,R*0.6,length(p));
+  c=paint(c, globeMask(p,R,-1.0)*0.35, ac());
+  c=paint(c, globeMask(p,R,1.0), WHITE()?ac():mix(ac(),vec3(1),0.3));
+  c=paint(c, L(length(p)-R,0.006), WHITE()?INK():vec3(1));
+  vec2 q=rot(-0.3)*p; float k0=length(q/vec2(R*1.6,R*0.3)); float k1=length(q/(vec2(R*1.6,R*0.3)*vec2(R*1.6,R*0.3)));
+  float ring=k0*(k0-1.0)/k1;
+  c=paint(c, L(ring,0.005)*(1.0-step(length(p),R)*step(0.0,q.y)), ac());
+  return c;
+}
+// 16 neon grid landscape: striped sun, hatched mountains, floor rushing towards the camera
+vec3 lTerrain(vec2 p){
+  float h=0.05;
+  vec3 c=BG();
+  vec2 sp=p-vec2(0.0,h+0.42);
+  float sd=length(sp)-0.4;
+  if(sd<0.0 && p.y>h){
+    float yy=(p.y-h)/0.82;
+    float band=fract(p.y*14.0-uT*0.7);
+    c=paint(c, step(0.55*(1.0-yy),band), ac());
+  }
+  c=paint(c, L(sd,0.005)*step(h,p.y), ac());
+  float mh=(noise(vec2(p.x*3.0,1.7))*0.65+noise(vec2(p.x*8.0,4.1))*0.25)*smoothstep(0.15,0.95,abs(p.x))*0.6*uPrm.z;
+  float my=h+mh;
+  if(p.y>h && p.y<my){
+    c=BG();
+    float k=fract((my-p.y)*38.0);
+    c=paint(c, L(min(k,1.0-k),0.1)*0.55, ac());
+  }
+  c=paint(c, L(p.y-my,0.004)*step(h,p.y), WHITE()?INK():mix(ac(),vec3(1),0.5));
+  if(p.y<h){
+    float dz=h-p.y;
+    float z=0.3/dz;
+    float gz=fract(z-uT*uPrm.y);
+    float gx=fract(p.x*z*uPrm.x*0.25+0.5);
+    float m=max(LP(min(gz,1.0-gz),2.5), LP(min(gx,1.0-gx),2.0));
+    c=paint(c, m*smoothstep(0.0,0.3,dz), ac());
+    if(!WHITE()) c+=ac()*0.12*smoothstep(0.35,0.0,dz);
+  }
+  c=paint(c, L(p.y-h,0.004), WHITE()?INK():vec3(1));
+  return c;
+}
+// 17 contour vortex: concentric lines bent into turning lobes
+vec3 lVortex(vec2 p){
+  float r=length(p), a=atan(p.y,p.x);
+  float f=r*uPrm.y*10.0 + 0.7*sin(a*floor(uPrm.x)+log(r+0.02)*3.0*uPrm.z-uT*2.0)*smoothstep(0.0,0.6,r) - uT*1.5;
+  float k=fract(f);
+  float major=step(mod(floor(f+0.5),4.0),0.5);
+  vec3 c=BG();
+  c=paint(c, L(min(k,1.0-k),0.05+0.04*major)*smoothstep(0.02,0.15,r), major>0.5&&!WHITE()?mix(ac(),vec3(1),0.5):ac());
+  return c;
+}
+// 18 harmonograph / lissajous figure with glow
+vec3 lHarmono(vec2 p){
+  float a=uPrm.x, b=uPrm.y;
+  float ph=uT*0.35;
+  float d=1e9;
+  vec2 prev=vec2(0.0);
+  for(int i=0;i<=120;i++){
+    float u=float(i)/120.0*TAU;
+    float e=0.86+0.14*cos(u*uPrm.z+uT*0.3);
+    vec2 q=vec2(sin(a*u+ph)*0.82, sin(b*u+1.1)*1.25)*e;
+    if(i>0) d=min(d, segD(p,prev,q));
+    prev=q;
+  }
+  vec3 c=BG();
+  if(!WHITE()) c+=ac()*exp(-d*28.0)*0.35;
+  c=paint(c, L(d,0.004), WHITE()?ac():mix(ac(),vec3(1),0.45));
+  return c;
+}
+// 19 recursive polygon tunnel: nested arches / triangles / squares / hexagons, each ring twisted
+float sdNgon(vec2 p, float n, float r){
+  if(n<2.5){
+    float d=sdBoxR(p, vec2(0.0,-0.2*r), vec2(0.55*r,0.8*r), 0.0);
+    return min(d, length(p-vec2(0.0,0.6*r))-0.55*r);
+  }
+  float seg=TAU/n;
+  float an=mod(atan(p.x,p.y)+seg*0.5,seg)-seg*0.5;
+  return length(p)*cos(an)-r*cos(seg*0.5);
+}
+vec3 lPolyTunnel(vec2 p){
+  vec3 c=BG();
+  float ph=fract(uT*uPrm.z);
+  for(int i=0;i<18;i++){
+    float fi=float(i)+ph;
+    float s=0.025*pow(1.3,fi);
+    if(s>3.5) break;
+    vec2 q=rot(fi*uPrm.y)*p;
+    float d=sdNgon(q,uPrm.x,s*(1.0+0.04*uKick));
+    float w=0.0025+0.006*s;
+    float fade=smoothstep(0.02,0.12,s);
+    vec3 col=mod(float(i),3.0)<0.5 ? (WHITE()?INK():vec3(1)) : ac();
+    c=paint(c, L(d,w)*fade, col);
+    if(!WHITE()) c+=ac()*exp(-abs(d)*50.0)*0.06*fade;
+  }
+  return c;
+}
+// 20 plucked strings: vertical lines ringing in standing waves, hit by the kick
+vec3 lStrings(vec2 p){
+  vec3 c=BG();
+  float n=floor(uPrm.x);
+  for(int i=0;i<16;i++){
+    float fi=float(i);
+    if(fi>=n) break;
+    float x0=(fi-(n-1.0)*0.5)/n*1.8;
+    float k=floor(1.0+hash11(fi)*4.0);
+    float amp=(0.025+0.10*uKick*hash11(fi+7.0)+0.03*uBass)*uPrm.y;
+    float disp=amp*sin((p.y+1.8)/3.6*k*PI)*sin(uT*(5.0+fi*0.7)+fi*2.0);
+    float d=p.x-x0-disp;
+    vec3 col=WHITE()?ac():mix(ac(),vec3(1),0.5*hash11(fi+5.0));
+    c=paint(c, L(d,0.003+0.003*hash11(fi+2.0)), col);
+    if(!WHITE()) c+=ac()*exp(-abs(d)*70.0)*0.18;
+  }
+  return c;
+}
+// 21 double helix with rungs
+vec3 lHelix(vec2 p){
+  vec3 c=BG();
+  float A=uPrm.x, k=uPrm.y*3.0;
+  float ph=p.y*k+uT*1.6;
+  float x1=A*sin(ph), z1=cos(ph);
+  float slope=sqrt(1.0+pow(A*k*z1,2.0));
+  float d1=abs(p.x-x1)/slope, d2=abs(p.x+x1)/slope;
+  float dy=0.75/uPrm.z;
+  float yc=(floor(p.y/dy)+0.5)*dy;
+  float xr=A*sin(yc*k+uT*1.6);
+  float dr=segD(p, vec2(-xr,yc), vec2(xr,yc));
+  float zr=cos(yc*k+uT*1.6);
+  vec3 dim=WHITE()?mix(BG(),ac(),0.45):ac()*0.4;
+  c=paint(c, L(dr,0.003), dim);
+  float dots=min(length(p-vec2(xr,yc)), length(p-vec2(-xr,yc)));
+  c=paint(c, L(dots,0.014), WHITE()?INK():vec3(1));
+  c=paint(c, L(z1<0.0?d1:d2,0.006), dim);
+  c=paint(c, L(z1<0.0?d2:d1,0.008), WHITE()?ac():mix(ac(),vec3(1),0.3));
+  if(!WHITE()) c+=ac()*exp(-min(d1,d2)*45.0)*0.2;
+  return c;
+}
+// 22 line rain: falling dashes in columns, bright heads
+vec3 lRain(vec2 p){
+  vec3 c=BG();
+  float cols=floor(uPrm.x);
+  float x=p.x*cols*0.5;
+  float id=floor(x), fx=fract(x)-0.5;
+  float sp=0.6+1.4*hash11(id);
+  float y=p.y*uPrm.y*2.0 + uT*sp*2.5 + hash11(id+3.0)*10.0;
+  float yi=floor(y), fy=fract(y);
+  float h=hash11(id*13.0+yi);
+  float len=0.25+0.6*h;
+  float on=step(fy,len)*step(0.3,h);
+  float m=L(fx,0.08)*on;
+  float head=smoothstep(len-0.08,len,fy)*on;
+  if(!WHITE()) c+=ac()*exp(-abs(fx)*9.0)*0.25*on*fy/len;
+  c=paint(c, m*(0.35+0.65*fy/len), ac());
+  c=paint(c, L(fx,0.12)*head, WHITE()?INK():vec3(1));
+  return c;
+}
+// 23 topographic map: moving contour lines of a warped noise field, every 5th line bold
+vec3 lTopo(vec2 p){
+  vec2 q=p*uPrm.x+vec2(uT*0.08,-uT*0.05);
+  vec2 w=vec2(noise(q*0.7+uT*0.12), noise(q*0.7-uT*0.1+5.0));
+  float f=noise(q+0.6*w)*0.65+noise(q*2.1+3.1)*0.25+noise(q*4.3+7.7)*0.1;
+  float lev=f*uPrm.y*16.0-uT*0.6;
+  float li=floor(lev+0.5);
+  float d=lev-li;
+  bool major=mod(li,5.0)<0.5;
+  vec3 c=BG();
+  c=paint(c, L(d, major?0.09:0.045), major?(WHITE()?INK():vec3(1)):ac());
+  return c;
+}
+// 24 atom: tilted orbit ellipses, electrons running along them, pulsing nucleus
+vec3 lOrbits(vec2 p){
+  vec3 c=BG();
+  float n=floor(uPrm.x), R=uPrm.y;
+  vec2 e=vec2(R, R*0.3);
+  for(int i=0;i<6;i++){
+    float fi=float(i);
+    if(fi>=n) break;
+    vec2 q=rot(fi*PI/n+uT*0.12)*p;
+    float k0=length(q/e), k1=length(q/(e*e));
+    float d=k0*(k0-1.0)/k1;
+    c=paint(c, L(d,0.004), ac());
+    float th=uT*(1.6+fi*0.35)+fi*2.0;
+    float de=length(q-e*vec2(cos(th),sin(th)));
+    if(!WHITE()) c+=ac()*exp(-de*30.0)*0.5;
+    c=paint(c, smoothstep(0.03,0.02,de), WHITE()?INK():vec3(1));
+  }
+  float nr=0.09*(1.0+0.25*uKick);
+  float kk=fract(length(p)/nr*2.0-uT*2.0);
+  c=paint(c, L(min(kk,1.0-kk),0.08)*step(length(p),nr*1.6), WHITE()?INK():mix(ac(),vec3(1),0.5));
+  return c;
+}
+// 25 icosahedron wireframe with a counter-rotating inner copy (recursion)
+float icosaD(vec2 p, float t, float s){
+  const float G=1.618034;
+  vec3 v[12];
+  v[0]=vec3(-1.0,G,0.0); v[1]=vec3(1.0,G,0.0); v[2]=vec3(-1.0,-G,0.0); v[3]=vec3(1.0,-G,0.0);
+  v[4]=vec3(0.0,-1.0,G); v[5]=vec3(0.0,1.0,G); v[6]=vec3(0.0,-1.0,-G); v[7]=vec3(0.0,1.0,-G);
+  v[8]=vec3(G,0.0,-1.0); v[9]=vec3(G,0.0,1.0); v[10]=vec3(-G,0.0,-1.0); v[11]=vec3(-G,0.0,1.0);
+  vec2 pr[12];
+  for(int i=0;i<12;i++){
+    vec3 q=v[i]; q.xz=rot(t)*q.xz; q.yz=rot(t*0.63)*q.yz;
+    pr[i]=q.xy/(4.2-q.z*0.6)*s;
+  }
+  float d=1e9;
+  for(int i=0;i<12;i++){ for(int j=i+1;j<12;j++){ if(distance(v[i],v[j])<2.1) d=min(d, segD(p,pr[i],pr[j])); } }
+  return d;
+}
+vec3 lIcosa(vec2 p){
+  vec3 c=BG();
+  float s=uPrm.x*2.6*(1.0+0.05*uKick);
+  float d=icosaD(p, uT*0.5, s);
+  if(!WHITE()) c+=ac()*exp(-d*30.0)*0.4;
+  c=paint(c, L(d,0.005), WHITE()?ac():mix(ac(),vec3(1),0.35));
+  if(uPrm.z>0.5){
+    float d2=icosaD(p, -uT*0.8+1.0, s*0.42);
+    c=paint(c, L(d2,0.004), WHITE()?INK():vec3(1));
+  }
+  return c;
+}
+
 vec3 scene(int id, vec2 p){
   if(id==0) return lWeave(p);
   if(id==1) return lTunnel(p);
@@ -454,7 +702,18 @@ vec3 scene(int id, vec2 p){
   if(id==11) return lLasers(p);
   if(id==12) return lRidges(p);
   if(id==13) return lSilhouette(p);
-  return lCubes(p);
+  if(id==14) return lCubes(p);
+  if(id==15) return lGlobe(p);
+  if(id==16) return lTerrain(p);
+  if(id==17) return lVortex(p);
+  if(id==18) return lHarmono(p);
+  if(id==19) return lPolyTunnel(p);
+  if(id==20) return lStrings(p);
+  if(id==21) return lHelix(p);
+  if(id==22) return lRain(p);
+  if(id==23) return lTopo(p);
+  if(id==24) return lOrbits(p);
+  return lIcosa(p);
 }
 
 void main(){
