@@ -1,0 +1,53 @@
+{
+ "_note": "written by engine/analytics.py report; multipliers for daily.py (songs) and shots.py (families, first shot). 1.0 = neutral. Effects are shrunk towards 0, so few reels = little change.",
+ "families": {
+  "burst": 1.0,
+  "cubes": 1.0,
+  "dashsphere": 1.0,
+  "dots": 1.014,
+  "isocubes": 1.007,
+  "lasers": 0.994,
+  "ridges": 1.0,
+  "silhouette/bust": 1.008,
+  "silhouette/cat": 0.993,
+  "silhouette/eye": 1.04,
+  "silhouette/figure": 1.036,
+  "silhouette/hand": 1.003,
+  "silhouette/heart": 1.041,
+  "silhouette/mushroom": 0.973,
+  "silhouette/planet": 1.03,
+  "silhouette/profile": 1.0,
+  "silhouette/pyramid": 0.997,
+  "silhouette/star": 0.963,
+  "stripesphere": 1.0,
+  "tesseract": 1.0,
+  "weave": 1.0,
+  "wireroom": 1.0,
+  "wiretunnel": 1.001,
+  "wormhole": 1.0,
+  "zigzag": 1.004
+ },
+ "first": {
+  "cubes": 0.997,
+  "dashsphere": 1.123,
+  "dots": 0.967,
+  "isocubes": 1.035,
+  "lasers": 0.85,
+  "silhouette/figure": 0.969,
+  "silhouette/star": 0.967,
+  "tesseract": 0.926,
+  "weave": 1.075,
+  "wireroom": 0.983,
+  "wiretunnel": 1.07,
+  "wormhole": 1.019
+ },
+ "reels_scored": 22,
+ "songs": {
+  "digits": 0.983,
+  "free_your_mind": 0.946,
+  "mafia": 1.079,
+  "my_mind": 1.085,
+  "not_just_music": 0.976
+ },
+ "updated": "2026-10-25T18:00+01:00"
+}

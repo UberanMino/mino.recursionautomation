@@ -399,7 +399,7 @@ class Director:
         # which shots: a per-reel cast picked against the usage history (engine/shots.py), then one shot per cut
         picker = S.Picker(self.r, self.history, exclude_ids={plan["id"]})
         cast = picker.cast()
-        seq = S.sequence(self.r, cast, picker.cut_weights(cast), len(cuts))
+        seq = S.sequence(self.r, cast, picker.cut_weights(cast), len(cuts), first=picker.first_weights(cast))
         plan["cast"] = cast
         for k, c in enumerate(cuts):
             t1 = cuts[k + 1] if k + 1 < len(cuts) else D
