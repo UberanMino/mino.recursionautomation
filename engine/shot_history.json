@@ -104,6 +104,174 @@
     "zigzag": 7
    },
    "hero": "silhouette/profile/contour"
+  },
+  {
+   "id": "mafia-line-99170",
+   "date": "2026-10-28",
+   "shots": {
+    "harmono/3-2": 3,
+    "icosa": 4,
+    "lasers": 7,
+    "orbits": 8,
+    "polytunnel/hex": 8,
+    "ridges": 9,
+    "silhouette/alien/scribble": 7,
+    "silhouette/crystal/scribble": 9,
+    "weave": 3
+   },
+   "hero": "orbits",
+   "first": "silhouette/crystal/scribble",
+   "open": [
+    "silhouette/crystal/scribble",
+    "lasers",
+    "ridges",
+    "orbits",
+    "silhouette/alien/scribble"
+   ]
+  },
+  {
+   "id": "not_just_music-line-99171",
+   "date": "2026-10-28",
+   "shots": {
+    "cubes": 11,
+    "isocubes": 5,
+    "silhouette/eye/halftone": 6,
+    "silhouette/planet/contour": 12,
+    "silhouette/pyramid/echo": 12,
+    "terrain": 2,
+    "wireroom": 5,
+    "wiretunnel": 2
+   },
+   "hero": "silhouette/pyramid/echo",
+   "first": "cubes",
+   "open": [
+    "cubes",
+    "silhouette/planet/contour",
+    "silhouette/eye/halftone",
+    "silhouette/pyramid/echo",
+    "isocubes",
+    "wireroom"
+   ]
+  },
+  {
+   "id": "my_mind-line-99172",
+   "date": "2026-10-28",
+   "shots": {
+    "helix": 6,
+    "ridges": 2,
+    "silhouette/cat/scan": 2,
+    "silhouette/mushroom/echo": 9,
+    "silhouette/profile/scribble": 8,
+    "strings": 4,
+    "topo": 7,
+    "weave": 3
+   },
+   "hero": "silhouette/mushroom/echo",
+   "first": "silhouette/mushroom/echo",
+   "open": [
+    "silhouette/mushroom/echo",
+    "topo",
+    "weave",
+    "ridges",
+    "strings"
+   ]
+  },
+  {
+   "id": "not_just_music-line-99173",
+   "date": "2026-10-28",
+   "shots": {
+    "icosa": 4,
+    "polytunnel/tri": 2,
+    "silhouette/alien/contour": 8,
+    "silhouette/cat/halftone": 12,
+    "silhouette/keyhole/scan": 8,
+    "stripesphere": 6,
+    "tesseract": 5
+   },
+   "hero": "silhouette/cat/halftone",
+   "first": "silhouette/alien/contour",
+   "open": [
+    "silhouette/alien/contour",
+    "stripesphere",
+    "icosa",
+    "silhouette/cat/halftone",
+    "tesseract"
+   ]
+  },
+  {
+   "id": "free_your_mind-line-99174",
+   "date": "2026-10-28",
+   "shots": {
+    "burst": 8,
+    "gyro": 2,
+    "moire": 4,
+    "orbits": 2,
+    "rain": 2,
+    "silhouette/alien/echo": 14,
+    "silhouette/crystal/echo": 14,
+    "silhouette/planet/echo": 10
+   },
+   "hero": "silhouette/alien/echo",
+   "first": "silhouette/planet/echo",
+   "open": [
+    "silhouette/planet/echo",
+    "burst",
+    "silhouette/alien/echo",
+    "rain",
+    "silhouette/crystal/echo",
+    "gyro"
+   ]
+  },
+  {
+   "id": "not_just_music-line-99175",
+   "date": "2026-10-28",
+   "shots": {
+    "dashsphere": 5,
+    "helix": 5,
+    "rain": 5,
+    "silhouette/crystal/scribble": 7,
+    "silhouette/hand/scribble": 7,
+    "strings": 3,
+    "terrain": 6,
+    "topo": 9,
+    "zigzag": 5
+   },
+   "hero": "topo",
+   "first": "topo",
+   "open": [
+    "topo",
+    "silhouette/crystal/scribble",
+    "helix",
+    "zigzag",
+    "dashsphere",
+    "strings",
+    "terrain",
+    "silhouette/hand/scribble"
+   ]
+  },
+  {
+   "id": "digits-line-99176",
+   "date": "2026-10-28",
+   "shots": {
+    "dots/round": 4,
+    "globe": 3,
+    "isocubes": 7,
+    "silhouette/bust/scribble": 7,
+    "silhouette/eye/halftone": 10,
+    "silhouette/keyhole/echo": 9,
+    "tesseract": 1,
+    "wireroom": 9
+   },
+   "hero": "silhouette/eye/halftone",
+   "first": "silhouette/bust/scribble",
+   "open": [
+    "silhouette/bust/scribble",
+    "silhouette/eye/halftone",
+    "isocubes",
+    "silhouette/keyhole/echo",
+    "wireroom",
+    "globe"
+   ]
   }
  ]
 }
