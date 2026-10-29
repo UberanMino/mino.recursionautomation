@@ -60,7 +60,7 @@ Seit 29.10.2026 (Raphael: „mehr Variation reinbringen") hat der Line-Stil mehr
 | `mono` | eine einzige Farbe pro Reel auf Schwarz | Viertel, ruhigeres Flackern |
 | `paper` | Tinte auf Off-White (Blau, Rot, Grün, Violett) | Achtel, kurze Schwarz-Blitze, Strobe auf der Eins |
 | `ember` | Bernstein / Rot / Gold, Körnung + Scanlines | Achtel ohne Bursts, langsamere Drift |
-| `ice` | Kaltblau / Silber, viel Glow, Chroma-Split | halbe Takte, große Drehung/Zoom |
+| `ice` | Kaltblau / Silber, viel Glow, Chroma-Split | halbe Takte, schnelle Drehung |
 | `stutter` | Magenta + Cyan | 16tel, Spiegel-Hits, Strobe auf jeder Achtel |
 
 `daily.py` verteilt die Looks pro Tag (`day_looks`): jeder Look 1× am Tag, nie zweimal hintereinander, auch nicht

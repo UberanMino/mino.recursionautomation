@@ -109,18 +109,18 @@ LOOKS = {
               "white": 0.0, "inv": 0.3, "invHit": True, "hue": 0.3, "strobe": "down", "bloom": 0.6, "grain": 0.03, "vignette": 0.08},
     # warm film: amber / red / gold, grain + scanlines, no 16th bursts, slower drift
     "ember": {"tints": [[1.0, 0.45, 0.05], [1.0, 0.16, 0.04], [1.0, 0.72, 0.25], [0.95, 0.22, 0.32]], "cut": (0.45, 0.4),
-              "burst": 0.0, "hold": 0.18, "inv": 0.5, "strobe": "down", "speed": 0.7, "grain": 0.07, "scan": 0.6,
+              "burst": 0.0, "hold": 0.18, "inv": 0.5, "invHit": True, "strobe": "down", "speed": 0.7, "grain": 0.07, "scan": 0.6,
               "vignette": 0.45, "rgbBase": 0.003, "bloom": 1.4},
-    # cold chrome: pale blue / silver, half-bar cuts, big drift and glow, chromatic split
+    # cold chrome: pale blue / silver, half-bar cuts, fast spin, big glow, chromatic split
     "ice": {"tints": [[0.35, 0.65, 1.0], [0.15, 0.42, 0.95], [0.55, 0.55, 0.85], [0.10, 0.80, 0.90]], "unit": 4, "cut": (1.0, 0.0),
-            "burst": 0.0, "hold": 0.0, "white": 0.0, "inv": 0.12, "invHit": True, "hue": 0.3, "tile": 0.0, "strobe": "down", "spin": 1.8, "drift": 1.6,
+            "burst": 0.0, "hold": 0.0, "white": 0.0, "inv": 0.12, "invHit": True, "hue": 0.3, "tile": 0.0, "strobe": "down", "spin": 1.8,
             "bloom": 1.8, "rgbBase": 0.004, "rgbBeat": 0.012},
     # two complementary colours, cuts on 16ths, mirror hits, strobe on every 8th
     "stutter": {"tints": [[1.00, 0.06, 0.66], [0.00, 0.78, 1.00]], "unit": 0.5, "cut": (0.35, 0.5), "burst": 0.0, "hold": 0.05,
                 "inv": 1.0, "tile": 0.15, "strobe": "eighth", "shake": 0.03},
 }
 LOOK_DEFAULTS = {"tints": V4_TINTS, "unit": 1, "cut": (0.55, 0.4), "burst": 0.18, "hold": 0.12, "white": 0.3, "ground": "black",
-                 "inv": 0.8, "invHit": False, "hue": 0.5, "tile": 0.04, "strobe": "kick", "speed": 1.0, "spin": 1.0, "drift": 1.0}
+                 "inv": 0.8, "invHit": False, "hue": 0.5, "tile": 0.04, "strobe": "kick", "speed": 1.0, "spin": 1.0}
 
 BASE_TAGS = ["#psychedelic", "#trippy", "#opticalillusion", "#visualart", "#rave", "#edm", "#hypnotic", "#trance",
              "#acidart", "#loop", "#mindbending", "#abstractart"]
@@ -449,7 +449,7 @@ class Director:
                                      "speed": round(self.r.uniform(1.5, 2.4) * L["speed"], 3),
                                      "zoom": round(self.r.uniform(0.9, 1.15), 3), "rot": round(self.r.uniform(-0.3, 0.3), 3),
                                      "spin": round(self.r.choice([-1, 1]) * self.r.uniform(0.25, 1.1) * L["spin"], 3),
-                                     "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9) * L["drift"], 3), "zoomPulse": 0.08,
+                                     "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9), 3), "zoomPulse": 0.08,
                                      "tint": self.r.randrange(len(tints)),
                                      "mirror": 4 if (sid == 6 and self.r.random() < 0.25) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
