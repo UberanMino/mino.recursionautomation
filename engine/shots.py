@@ -167,7 +167,7 @@ def record(hist, plan, date=None):
         if s["t0"] < 3.0 and s["shot"] not in opening:
             opening.append(s["shot"])
     entry = {"id": plan["id"], "date": date or dt.date.today().isoformat(), "shots": dict(sorted(shots.items())),
-             "hero": screen.most_common(1)[0][0], "first": segs[0]["shot"], "open": opening}
+             "hero": screen.most_common(1)[0][0], "first": segs[0]["shot"], "open": opening, "look": plan.get("look", "neon")}
     hist["reels"] = [r for r in hist["reels"] if r["id"] != plan["id"]] + [entry]
 
 

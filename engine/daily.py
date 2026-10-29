@@ -31,6 +31,9 @@ SLOTS = ["07:40", "10:15", "12:40", "15:10", "17:45", "19:50", "21:40", "23:05"]
 # weighted rotation; "drop" is the core format, the others keep the feed from feeling samey
 # the channel runs the minimal neon line-art format; the older formats stay available via --format
 FORMATS = ["line"] * 8
+# looks of the line format (engine/plan.py LOOKS), rotated so neighbouring reels never share one;
+# "neon" (V4) stays in the mix once a day
+LOOK_ROTATION = ["neon", "mono", "paper", "ember", "ice", "stutter"]
 
 
 def norm(name):
@@ -88,7 +91,20 @@ def day_songs(day, count, songs):
     return out
 
 
-def schedule(day, count, songs, fmt=None):
+def day_looks(day, count, prev=None):
+    """Every look once a day in a shuffled order (extra slots drawn at random), no look twice in a row,
+    and the first reel differs from the last reel of the previous run (`prev`)."""
+    r = random.Random(day.toordinal() * 17 + 3)
+    out = LOOK_ROTATION[:count] if count <= len(LOOK_ROTATION) else LOOK_ROTATION + r.choices(LOOK_ROTATION, k=count - len(LOOK_ROTATION))
+    out = list(out)
+    for _ in range(200):
+        r.shuffle(out)
+        if all(a != b for a, b in zip([prev] + out, out)):
+            break
+    return out
+
+
+def schedule(day, count, songs, fmt=None, prev_look=None):
     r = random.Random(day.toordinal())
     fmts = FORMATS[:count] if count <= len(FORMATS) else (FORMATS * 2)[:count]
     r.shuffle(fmts)
@@ -96,13 +112,15 @@ def schedule(day, count, songs, fmt=None):
         fmts = [fmt] * count
     slots = SLOTS[:count] if count <= 7 else SLOTS[:count]
     picks = day_songs(day, count, songs)
+    looks = day_looks(day, count, prev_look)
     out = []
     for i in range(count):
         hh, mm = map(int, slots[i % len(slots)].split(":"))
         when = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ) + dt.timedelta(minutes=r.randint(-6, 6))
         song = picks[i]
         seed = (day.toordinal() % 10000) * 10 + i
-        out.append({"slot": i, "due": when.isoformat(), "due_ts": int(when.timestamp()), "format": fmts[i], "song": song, "seed": seed})
+        out.append({"slot": i, "due": when.isoformat(), "due_ts": int(when.timestamp()), "format": fmts[i], "song": song, "seed": seed,
+                    "look": looks[i]})
     return out
 
 
@@ -127,21 +145,22 @@ def run(day, count, dry=False, now=False, fmt=None, quality="looks"):
         raise SystemExit("no songs available locally or in Dropbox /mino.recursion/songs")
     state_path = os.path.join(ROOT, "build", "daily", f"{day.isoformat()}{'-now' if now else ''}.json")
     os.makedirs(os.path.dirname(state_path), exist_ok=True)
-    state = json.load(open(state_path)) if os.path.exists(state_path) else {"day": day.isoformat(), "items": schedule(day, count, songs, fmt)}
+    hist = S.load_history()
+    prev_look = next((x.get("look") for x in reversed(hist["reels"]) if x["date"] < day.isoformat()), None)
+    state = json.load(open(state_path)) if os.path.exists(state_path) else {"day": day.isoformat(), "items": schedule(day, count, songs, fmt, prev_look)}
     if now:
         for it in state["items"]:
             it["due_ts"] = int(time.time()) - 60
     json.dump(state, open(state_path, "w"), indent=1)
     for it in state["items"]:
-        print(f"[{it['slot']}] {it['due']}  {it['format']:6s} {it['song']:15s} seed {it['seed']}  status={it.get('status', 'todo')}")
+        print(f"[{it['slot']}] {it['due']}  {it['format']:6s} {it.get('look', 'neon'):8s} {it['song']:15s} seed {it['seed']}  status={it.get('status', 'todo')}")
     if dry:
         return state
-    hist = S.load_history()
     for it in state["items"]:
         if it.get("status") == "queued":
             continue
         t0 = time.time()
-        plan = P.Director(it["song"], it["format"], it["seed"], history=hist).build()
+        plan = P.Director(it["song"], it["format"], it["seed"], history=hist, look=it.get("look", "neon")).build()
         # shot memory: the next reel already knows what this one used (commit engine/shot_history.json after the run)
         S.record(hist, plan, day.isoformat())
         S.save_history(hist)

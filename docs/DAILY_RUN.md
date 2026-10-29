@@ -49,6 +49,25 @@ Die Gewichte wirken nur innerhalb des freigegebenen Line-Stils V4:
 - Slots, Captions, Hashtags: nur Bericht; Slot-Zeiten oder Stil nur nach Rücksprache mit Raphael ändern.
 Facebook hat in Make kein Reel-Insights-Modul, daher misst die Schleife nur IG.
 
+## Looks (Stil-Varianten)
+
+Seit 29.10.2026 (Raphael: „mehr Variation reinbringen") hat der Line-Stil mehrere Looks, definiert in
+`engine/plan.py` (`LOOKS`). Gleicher Shot-Katalog, aber andere Farbwelt, anderer Grund und anderer Schnitt-Rhythmus:
+
+| Look | Farbe / Grund | Schnitt |
+|---|---|---|
+| `neon` | V4: sechs Neonfarben auf Schwarz | Achtel + 16tel-Bursts, Strobe auf jedem Kick |
+| `mono` | eine einzige Farbe pro Reel auf Schwarz | Viertel, ruhigeres Flackern |
+| `paper` | Tinte auf Off-White (Blau, Rot, Grün, Violett) | Achtel, kurze Schwarz-Blitze, Strobe auf der Eins |
+| `ember` | Bernstein / Rot / Gold, Körnung + Scanlines | Achtel ohne Bursts, langsamere Drift |
+| `ice` | Kaltblau / Silber, viel Glow, Chroma-Split | halbe Takte, große Drehung/Zoom |
+| `stutter` | Magenta + Cyan | 16tel, Spiegel-Hits, Strobe auf jeder Achtel |
+
+`daily.py` verteilt die Looks pro Tag (`day_looks`): jeder Look 1× am Tag, nie zweimal hintereinander, auch nicht
+über den Tageswechsel. Der Look steht im Plan (`plan["look"]`) und in `engine/shot_history.json`; die Analyse
+zeigt ihn als eigene Tabelle (nur Bericht, keine automatische Gewichtung). `neon` bleibt identisch zu V4.
+Einzeln testen: `python3 engine/plan.py --song mafia --format line --seed 1 --look paper`.
+
 ## Shot-Werkstatt (Abwechslung)
 
 Jedes Reel castet 7–9 Shots aus dem Katalog in `engine/shots.py` (Szene + Variante, z. B.

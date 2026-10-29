@@ -19,7 +19,8 @@ How a reel is scored (all numbers on the IG reel):
 
 Effects per song / shot family / opener / caption opener / hashtag set / slot are shrunk towards 0
 (effect = sum of scores / (n + PRIOR_N)), so a feature seen in 2 reels barely moves. weights.json turns them
-into gentle multipliers (WEIGHT_RANGE) that daily.py and shots.py apply: the look (line V4) never changes,
+into gentle multipliers (WEIGHT_RANGE) that daily.py and shots.py apply: the looks themselves (plan.py LOOKS,
+rotated by daily.py) are only reported, never weighted automatically,
 only how often songs / shots are picked and which shot opens a reel. Exploration stays (cooldown, caps,
 novelty boost, every song at least once a day).
 """
@@ -166,6 +167,7 @@ def features(db, now=None):
             "families": sorted({S.family(k) for k in info.get("shots", {})}),
             "first": S.family(info["first"]) if info.get("first") else None,
             "hero": S.family(info["hero"]) if info.get("hero") else None,
+            "look": info.get("look", "neon"),
             "views": m.get("views", 0), "skip": m.get("reels_skip_rate"), "watch": m.get("ig_reels_avg_watch_time"),
             "love": (m.get("likes", 0) + 2 * m.get("shares", 0) + 2 * m.get("saved", 0) + 2 * m.get("comments", 0)) / reach,
             "shares": m.get("shares", 0), "saved": m.get("saved", 0), "likes": m.get("likes", 0),
@@ -246,6 +248,7 @@ def report(db=None, now=None):
         "first": effects(mature, "first", target="z_hook"),
         "hero": effects(mature, "hero"),
         "slot": effects(mature, "slot"),
+        "look": effects(mature, "look"),
         "opener": effects(mature, "opener"),
         "tags": effects(mature, "tags"),
     }
@@ -291,6 +294,7 @@ def report(db=None, now=None):
            fmt_table("Shot-Familien im Reel", dict(list(eff["family"].items())[:8] + list(eff["family"].items())[-6:])),
            fmt_table("Hero-Shot (am längsten im Bild)", eff["hero"]),
            fmt_table("Slot (Berlin)", eff["slot"]),
+           fmt_table("Look (Stil-Variante, nur Bericht)", eff["look"]),
            fmt_table("Caption-Einstieg", eff["opener"]),
            fmt_table("Hashtag-Set", eff["tags"]),
            "## Was die Pipeline daraus macht", "",

@@ -95,6 +95,33 @@ CAPTION_ASKS = {
     "words": ["Did you read it on the beat?", "Say it with the drop."],
     "line": ["Which frame got you?", "Loop count?"],
 }
+# Looks for the line format: same shot catalogue, different colour world, ground and cut rhythm.
+# "neon" is the approved V4 (unchanged). daily.py rotates the looks so neighbouring reels never share one.
+V4_TINTS = [[0.50, 0.12, 1.00], [0.00, 0.85, 0.38], [0.12, 0.28, 1.00], [1.00, 0.06, 0.66], [1.00, 0.07, 0.18], [0.00, 0.78, 1.00]]
+LOOKS = {
+    # V4: six neon tints on black, cuts on 8ths with 16th bursts, strobe on every kick
+    "neon": {},
+    # one colour for the whole reel, cuts on quarter notes, calmer flicker
+    "mono": {"tints": "one", "unit": 2, "cut": (0.7, 0.25), "burst": 0.0, "hold": 0.2, "inv": 0.3, "hue": 0.0, "tile": 0.0,
+             "bloom": 1.3, "grain": 0.025},
+    # ink on paper: off-white ground, deep ink colours, strobe to black on the downbeats
+    "paper": {"tints": [[0.05, 0.10, 0.55], [0.70, 0.04, 0.10], [0.03, 0.32, 0.20], [0.28, 0.05, 0.45]], "ground": "paper",
+              "white": 0.0, "inv": 0.3, "invHit": True, "hue": 0.3, "strobe": "down", "bloom": 0.6, "grain": 0.03, "vignette": 0.08},
+    # warm film: amber / red / gold, grain + scanlines, no 16th bursts, slower drift
+    "ember": {"tints": [[1.0, 0.45, 0.05], [1.0, 0.16, 0.04], [1.0, 0.72, 0.25], [0.95, 0.22, 0.32]], "cut": (0.45, 0.4),
+              "burst": 0.0, "hold": 0.18, "inv": 0.5, "strobe": "down", "speed": 0.7, "grain": 0.07, "scan": 0.6,
+              "vignette": 0.45, "rgbBase": 0.003, "bloom": 1.4},
+    # cold chrome: pale blue / silver, half-bar cuts, big drift and glow, chromatic split
+    "ice": {"tints": [[0.35, 0.65, 1.0], [0.15, 0.42, 0.95], [0.55, 0.55, 0.85], [0.10, 0.80, 0.90]], "unit": 4, "cut": (1.0, 0.0),
+            "burst": 0.0, "hold": 0.0, "white": 0.0, "inv": 0.12, "invHit": True, "hue": 0.3, "tile": 0.0, "strobe": "down", "spin": 1.8, "drift": 1.6,
+            "bloom": 1.8, "rgbBase": 0.004, "rgbBeat": 0.012},
+    # two complementary colours, cuts on 16ths, mirror hits, strobe on every 8th
+    "stutter": {"tints": [[1.00, 0.06, 0.66], [0.00, 0.78, 1.00]], "unit": 0.5, "cut": (0.35, 0.5), "burst": 0.0, "hold": 0.05,
+                "inv": 1.0, "tile": 0.15, "strobe": "eighth", "shake": 0.03},
+}
+LOOK_DEFAULTS = {"tints": V4_TINTS, "unit": 1, "cut": (0.55, 0.4), "burst": 0.18, "hold": 0.12, "white": 0.3, "ground": "black",
+                 "inv": 0.8, "invHit": False, "hue": 0.5, "tile": 0.04, "strobe": "kick", "speed": 1.0, "spin": 1.0, "drift": 1.0}
+
 BASE_TAGS = ["#psychedelic", "#trippy", "#opticalillusion", "#visualart", "#rave", "#edm", "#hypnotic", "#trance",
              "#acidart", "#loop", "#mindbending", "#abstractart"]
 
@@ -109,7 +136,7 @@ def rel(times, t0, t1):
 
 
 class Director:
-    def __init__(self, song_key, fmt, seed, history=None):
+    def __init__(self, song_key, fmt, seed, history=None, look="neon"):
         self.songs = load(os.path.join(ROOT, "engine", "songs.json"))
         self.key = song_key
         self.song = self.songs[song_key]
@@ -121,6 +148,9 @@ class Director:
         self.bar = 4 * 60.0 / self.bpm
         self.used_scenes = []
         self.history = history if history is not None else S.load_history()
+        self.look = look if look in LOOKS else "neon"
+        # look-only decisions draw from their own stream so "neon" plans stay identical to V4
+        self.lr = random.Random(seed * 104729 + zlib.crc32(f"{song_key}/{self.look}".encode()))
 
     # ----- helpers -----
     def pick_window(self, pre_bars, total_bars):
@@ -373,27 +403,33 @@ class Director:
         plan = self.base_plan(start, end)
         D = plan["duration"]
         plan["overlays"] = []
-        # neon grade palette taken from the reference: deep violet, emerald, electric blue, magenta, crimson, cyan
-        tints = [[0.50, 0.12, 1.00], [0.00, 0.85, 0.38], [0.12, 0.28, 1.00], [1.00, 0.06, 0.66], [1.00, 0.07, 0.18], [0.00, 0.78, 1.00]]
-        plan["post"].update({"punch": 0.07, "punchDecay": 11, "rgbBase": 0.0018, "rgbBeat": 0.006, "rgbOnset": 0.003, "shake": 0.012,
-                             "grain": 0.02, "scan": 0, "vignette": 0.15, "barrel": 0.0, "overlayFx": 0.0, "bloom": 1.0, "bloomPulse": 1.2,
-                             "grade": 1, "tints": tints})
+        # look: neon grade palette (V4 default taken from the reference) + rhythm / flicker settings
+        L = dict(LOOK_DEFAULTS, **LOOKS[self.look])
+        tints = L["tints"] if L["tints"] != "one" else [self.lr.choice(V4_TINTS)]
+        plan["look"] = self.look
+        post = {"punch": 0.07, "punchDecay": 11, "rgbBase": 0.0018, "rgbBeat": 0.006, "rgbOnset": 0.003, "shake": 0.012,
+                "grain": 0.02, "scan": 0, "vignette": 0.15, "barrel": 0.0, "overlayFx": 0.0, "bloom": 1.0, "bloomPulse": 1.2,
+                "grade": 1, "tints": tints}
+        post.update({k: L[k] for k in ("rgbBase", "rgbBeat", "shake", "grain", "scan", "vignette", "bloom") if k in L})
+        plan["post"].update(post)
         plan["render"]["sceneScale"] = 1.0
         beats = plan["beats"]
         per8 = 60.0 / self.bpm / 2
-        first = beats[0] % per8 if beats else 0.0
-        grid = [round(first + i * per8, 4) for i in range(int(D / per8) + 2) if first + i * per8 < D - 0.1]
+        unit = per8 * L["unit"]
+        anchor = plan["downbeats"] if L["unit"] >= 4 and plan["downbeats"] else beats
+        first = anchor[0] % unit if anchor else 0.0
+        grid = [round(first + i * unit, 4) for i in range(int(D / unit) + 2) if first + i * unit < D - 0.1]
         cuts, hold = [0.0], 0
         for t in grid[1:]:
             e = self.energy_at(start + t)
             if hold > 0:
                 hold -= 1
                 continue
-            if self.r.random() < 0.55 + 0.4 * e:
+            if self.r.random() < L["cut"][0] + L["cut"][1] * e:
                 cuts.append(t)
-                if self.r.random() < 0.18 * e:                       # 16th-note burst
+                if self.r.random() < L["burst"] * e:                 # 16th-note burst
                     cuts.append(round(t + per8 / 2, 4))
-            if self.r.random() < 0.12:
+            if self.r.random() < L["hold"]:
                 hold = self.r.choice([1, 2, 3])                      # let a hero shot breathe
         cuts = sorted(set(c for c in cuts if c < D - 0.05))
         # which shots: a per-reel cast picked against the usage history (engine/shots.py), then one shot per cut
@@ -405,15 +441,15 @@ class Director:
             t1 = cuts[k + 1] if k + 1 < len(cuts) else D
             key = seq[k]
             sid = S.CATALOG[key]["scene"]
-            white = sid in LINE_WHITE_OK and self.r.random() < 0.3
+            white = sid in LINE_WHITE_OK and self.r.random() < L["white"]
             pal = self.r.choice([0, 1, 2, 3, 5]) if not white else self.r.choice([6, 3, 2])
             prm = S.params(self.r, key) + [1 if white else 0]
             plan["segments"].append({"t0": round(c, 4), "t1": round(t1, 4), "scene": sid, "lib": "lines", "name": LINE_SCENES[sid][0],
                                      "shot": key, "pal": pal, "prm": prm, "offset": round(self.r.uniform(0, 20), 3),
-                                     "speed": round(self.r.uniform(1.5, 2.4), 3),
+                                     "speed": round(self.r.uniform(1.5, 2.4) * L["speed"], 3),
                                      "zoom": round(self.r.uniform(0.9, 1.15), 3), "rot": round(self.r.uniform(-0.3, 0.3), 3),
-                                     "spin": round(self.r.choice([-1, 1]) * self.r.uniform(0.25, 1.1), 3),
-                                     "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9), 3), "zoomPulse": 0.08,
+                                     "spin": round(self.r.choice([-1, 1]) * self.r.uniform(0.25, 1.1) * L["spin"], 3),
+                                     "zoomDrift": round(self.r.choice([-1, 1]) * self.r.uniform(0.35, 0.9) * L["drift"], 3), "zoomPulse": 0.08,
                                      "tint": self.r.randrange(len(tints)),
                                      "mirror": 4 if (sid == 6 and self.r.random() < 0.25) else 0, "energy": self.energy_at(start + c)})
             if k > 0:
@@ -423,11 +459,12 @@ class Director:
         downs = plan["downbeats"]
         def bar_of(t):
             return max([i for i, d0 in enumerate(downs) if d0 <= t + 1e-4] or [0])
-        for b in beats:
+        hits = downs if L["strobe"] == "down" else beats
+        for b in hits:
             if b >= D - 0.05:
                 continue
             plan["post"]["flashes"].append({"t": round(b, 4), "dur": 0.05, "amt": 0.85, "color": [1, 1, 1]})
-            if bar_of(b) in burst_bars:
+            if bar_of(b) in burst_bars or L["strobe"] == "eighth":
                 plan["post"]["flashes"].append({"t": round(b + per8, 4), "dur": 0.04, "amt": 0.7, "color": [1, 1, 1]})
         # 16th-note flicker states: [t, invert, hue, mirror(0=segment default), time jump]
         per = per8 / 2
@@ -437,16 +474,18 @@ class Director:
         for t in steps:
             e = self.energy_at(start + t)
             p = 0.3 + 0.5 * e
-            if self.r.random() < p * 0.8 and t - last_toggle >= 0.2:
+            if self.r.random() < p * L["inv"] and t - last_toggle >= 0.2:
                 inv ^= 1
                 last_toggle = t
-            if self.r.random() < p * 0.5:
+            elif L["invHit"] and inv:                                 # look "paper": an invert is a single 16th hit
+                inv = 0
+            if self.r.random() < p * L["hue"]:
                 hue = self.r.choice([-1, -1, self.r.randrange(len(tints))])   # tint override (-1 = shot tint)
             if tile_left > 0:
                 tile_left -= 1
                 if tile_left == 0:
                     tile = 0
-            elif self.r.random() < 0.04:
+            elif self.r.random() < L["tile"]:
                 tile, tile_left = self.r.choice([4, 5]), self.r.choice([2, 3, 4])   # short mirror hit, then back
             if self.r.random() < p * 0.35:
                 jump += self.r.choice([-1, 1]) * self.r.uniform(0.15, 0.6)
@@ -454,6 +493,8 @@ class Director:
         if flick:
             flick[-1] = [flick[-1][0]] + flick[0][1:]
         plan["post"]["flicker"] = flick
+        if L["ground"] == "paper":   # whole reel in the grade's white mode (ink on paper); invert flicker drops to black
+            plan["post"]["inverts"].append([0, D])
         self.close_loop(plan)
         return plan, ""
 
@@ -499,9 +540,10 @@ def main():
     ap.add_argument("--song", required=True)
     ap.add_argument("--format", required=True, choices=["drop", "stare", "error", "eyes", "words", "line"])
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--look", default="neon", choices=list(LOOKS))
     ap.add_argument("--out")
     a = ap.parse_args()
-    plan = Director(a.song, a.format, a.seed).build()
+    plan = Director(a.song, a.format, a.seed, look=a.look).build()
     out = a.out or os.path.join(ROOT, "build", "plans", plan["id"] + ".json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
